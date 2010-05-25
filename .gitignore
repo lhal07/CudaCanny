@@ -1,0 +1,12 @@
+bin/*
+src/CMakeFiles/
+src/Makefile
+src/bin/
+src/canny.cubin
+src/canny.linkinfo
+src/cmake_install.cmake
+Makefile
+CMakeFiles/
+cmake_install.cmake
+CMakeCache.txt
+res.png
