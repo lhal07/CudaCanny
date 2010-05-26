@@ -12,6 +12,8 @@
 #include <cutil.h>
 #include <cudpp.h>
 
+#include"itkCudaCannyFilter.h"
+
 
 /*********************** Teste ************************
   int i,j;
@@ -25,6 +27,7 @@
   }
   printf("\n");
 ******************* Fim do Teste *********************/
+
 
 
 /// allocate texture variables
@@ -793,5 +796,13 @@ void cudaCanny(unsigned char *image, int width, int height, const float gaussian
   cudaThreadSynchronize();
   cutStopTimer( timer );  ///< Stop timer
   printf("cudaCanny total time = %f ms\n",cutGetTimerValue( timer ));
+
+}
+
+namespace itk{
+
+void CudaCannyFilter::Update(){
+  cudaCanny(image,width,height,gaussianVariance,maxKernelWidth,Tl,Th);
+}
 
 }
