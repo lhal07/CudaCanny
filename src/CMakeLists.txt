@@ -18,6 +18,7 @@ set(CUDA_NVCC_FLAGS
 )
 
 CUDA_ADD_EXECUTABLE(../bin/cudacanny
+  itkCudaCannyFilter.cxx
   cudacanny.cxx
   canny.cu
 )
