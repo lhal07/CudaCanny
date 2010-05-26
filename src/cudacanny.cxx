@@ -61,8 +61,8 @@ int main (int argc, char** argv){
   gettimeofday(&tv1,NULL);
 
   /* apply canny operator */
-  cudaCanny(image->GetBufferPointer(),imageSize[0],imageSize[1],gaussianVariance,maxKernelWidth,t1,t2);
-/*  typedef itk::CudaCannyFilter<ImageType> CannyType;
+//  cudaCanny(image->GetBufferPointer(),imageSize[0],imageSize[1],gaussianVariance,maxKernelWidth,t1,t2);
+  typedef itk::CudaCannyFilter<ImageType> CannyType;
   CannyType canny;
   canny->SetInput(image->GetBufferPionter());
   canny->SetSize(imageSize[0],imageSize[1]);
@@ -70,8 +70,6 @@ int main (int argc, char** argv){
   canny->SetMaxKernelWidth(maxKernelWidth);
   canny->SetThreshold(t1,t2);
   canny->Update();
-*/
-  
 
   gettimeofday(&tv2,NULL);
  
