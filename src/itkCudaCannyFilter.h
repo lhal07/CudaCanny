@@ -5,15 +5,6 @@
  * \since 20/05/10
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include "itkImage.h"
-#include "itkPNGImageIO.h"
-#include "itkImageFileReader.h"
-#include "itkImageFileWriter.h"
-
-extern "C"
-void cudaCanny(unsigned char *input, int width, int height, const float gaussianVariance, const unsigned int maxKernelWidth, const unsigned int T1, const unsigned int T2);
 
 namespace itk
 {
@@ -45,7 +36,6 @@ public:
   typedef typename TImage::PixelType   ImgPixelType;
   typedef typename TImage::IndexType   IndexType;
 
-
 private:
   ImgPixelType* image;
   int width;
@@ -55,45 +45,14 @@ private:
   unsigned int Th;
   unsigned int Tl;
 
-  void cudaCanny(ImgPixelType *image, int width, int height, const float gaussianVariance, const unsigned int maxKernelWidth, const unsigned int T1, const unsigned int T2);
-
-
 public:
-  /** Set the image used by the algorithm */
-  void SetInput(ImgPixelType* input){
-    image = input;
-  }
 
-  /** Set the image dimensions used by the algorithm */
-  void SetSize(int w, int h){
-    width = w;
-    height = h;
-  }
-
-  /** Set the Variance parameter used by the Gaussian smoothing filter */
-  void SetVariance(float v){
-    gaussianVariance = v;
-    printf("%d \n",v);
-  }
- 
-  /** Set the Maximum Gaussian Kernel Width parameter used by the Gaussian 
-   * smoothing filter */
-  void SetMaxKernelWidth(unsigned int kw){
-    maxKernelWidth = kw;
-  }
-
-  /** Set the Two Thresholds parameters used by the Hysteresis */
-  void SetThreshold(unsigned int T2, unsigned int T1){
-    Th = T2;
-    Tl = T1;
-  }
-
-  /** Set the Variance parameter used by the Gaussian smoothing filter */
-  void Update(){
-    cudaCanny(image,width,height,gaussianVariance,maxKernelWidth,Tl,Th);
-  }
-
-
+  void SetInput(ImgPixelType* input);
+  void SetSize(int w, int h);
+  void SetVariance(float v);
+  void SetMaxKernelWidth(unsigned int kw);
+  void SetThreshold(unsigned int T2, unsigned int T1);
+  void Update();
 
 };
 
