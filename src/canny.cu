@@ -801,8 +801,8 @@ void cudaCanny(unsigned char *image, int width, int height, const float gaussian
 
 namespace itk{
 
-void CudaCannyFilter::Update(){
+template<class TInputImage> 
+void CudaCannyFilter<TInputImage>::Update(){
   cudaCanny(image,width,height,gaussianVariance,maxKernelWidth,Tl,Th);
 }
-
 }
