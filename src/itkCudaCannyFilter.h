@@ -5,10 +5,6 @@
  * \since 20/05/10
  */
 
-
-namespace itk
-{
-
 /** \class CudaCannyFilter
  *
  * This filter is an implementation of a Canny edge detector in CUDA;
@@ -22,7 +18,10 @@ namespace itk
  *      link edges.
  *
  */
-template<class TImage> 
+
+namespace itk{
+
+template<class TInputImage>
 class CudaCannyFilter
 {
 public:
@@ -30,20 +29,20 @@ public:
   typedef CudaCannyFilter Self;
   
   /** Image typedef support   */
-  typedef TImage  InputImageType;
+  typedef TInputImage InputImageType;
       
   /** Define pixel types. */
-  typedef typename TImage::PixelType   ImgPixelType;
-  typedef typename TImage::IndexType   IndexType;
+  typedef typename TInputImage::PixelType ImgPixelType;
+  typedef typename TInputImage::IndexType IndexType;
 
 private:
   ImgPixelType* image;
-  int width;
-  int height;
-  float gaussianVariance;
-  unsigned int maxKernelWidth;
-  unsigned int Th;
-  unsigned int Tl;
+  int           width;
+  int           height;
+  float         gaussianVariance;
+  unsigned int  maxKernelWidth;
+  unsigned int  Th;
+  unsigned int  Tl;
 
 public:
 
@@ -56,4 +55,4 @@ public:
 
 };
 
-} // end of namespace
+}
