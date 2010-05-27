@@ -21,6 +21,13 @@
  * =============================================================================
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "itkImage.h"
+#include "itkPNGImageIO.h"
+#include "itkImageFileReader.h"
+#include "itkImageFileWriter.h"
 #include "itkCudaCannyFilter.h"
 
 //para teste
@@ -62,14 +69,13 @@ int main (int argc, char** argv){
 
   /* apply canny operator */
 //  cudaCanny(image->GetBufferPointer(),imageSize[0],imageSize[1],gaussianVariance,maxKernelWidth,t1,t2);
-  typedef itk::CudaCannyFilter<ImageType> CannyType;
-  CannyType canny;
-  canny->SetInput(image->GetBufferPionter());
-  canny->SetSize(imageSize[0],imageSize[1]);
-  canny->SetVariance(gaussianVariance);
-  canny->SetMaxKernelWidth(maxKernelWidth);
-  canny->SetThreshold(t1,t2);
-  canny->Update();
+  itk::CudaCannyFilter<ImageType> canny;
+  canny.SetInput(image->GetBufferPointer());
+  canny.SetSize(imageSize[0],imageSize[1]);
+  canny.SetVariance(gaussianVariance);
+  canny.SetMaxKernelWidth(maxKernelWidth);
+  canny.SetThreshold(t1,t2);
+  canny.Update();
 
   gettimeofday(&tv2,NULL);
  
