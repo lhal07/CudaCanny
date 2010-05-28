@@ -28,16 +28,19 @@
 #include "itkPNGImageIO.h"
 #include "itkImageFileReader.h"
 #include "itkImageFileWriter.h"
-#include "itkCudaCannyFilter.h"
+#include "itkCudaCannyEdgeDetectionImageFilter.h"
 
 //para teste
 #include <time.h>
 #include <sys/time.h>
 
-typedef unsigned char                              PixelType;
-typedef itk::Image<PixelType,2>                    ImageType;
-typedef itk::ImageFileReader< ImageType >          ReaderType;
-typedef itk::ImageFileWriter< ImageType >          WriterType;
+typedef unsigned char                                              PixelType;
+typedef float                                                 FloatPixelType;
+typedef itk::Image<PixelType,2>                                    ImageType;
+typedef itk::Image<FloatPixelType,2>                          FloatImageType;
+typedef itk::ImageFileReader< ImageType >                          ReaderType;
+typedef itk::ImageFileWriter< ImageType >                          WriterType;
+typedef itk::CannyEdgeDetectionImageFilter< FloatImageType, FloatImageType > CannyFilter;
 
 
 int main (int argc, char** argv){
@@ -68,14 +71,18 @@ int main (int argc, char** argv){
   gettimeofday(&tv1,NULL);
 
   /* apply canny operator */
+
+  CannyFilter::Pointer canny = CannyFilter::New();
+  canny->UpdateInCUDA(image->GetBufferPointer(),imageSize[0],imageSize[1],gaussianVariance,maxKernelWidth,t1,t2);
+
 //  cudaCanny(image->GetBufferPointer(),imageSize[0],imageSize[1],gaussianVariance,maxKernelWidth,t1,t2);
-  itk::CudaCannyFilter<ImageType> canny;
-  canny.SetInput(image->GetBufferPointer());
-  canny.SetSize(imageSize[0],imageSize[1]);
-  canny.SetVariance(gaussianVariance);
-  canny.SetMaxKernelWidth(maxKernelWidth);
-  canny.SetThreshold(t1,t2);
-  canny.Update();
+//  itk::CudaCannyFilter<ImageType> canny;
+//  canny.SetInput(image->GetBufferPointer());
+//  canny.SetSize(imageSize[0],imageSize[1]);
+//  canny.SetVariance(gaussianVariance);
+//  canny.SetMaxKernelWidth(maxKernelWidth);
+//  canny.SetThreshold(t1,t2);
+//  canny.Update();
 
   gettimeofday(&tv2,NULL);
  

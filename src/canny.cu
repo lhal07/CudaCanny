@@ -12,9 +12,6 @@
 #include <cutil.h>
 #include <cudpp.h>
 
-#include"itkCudaCannyFilter.h"
-
-
 /*********************** Teste ************************
   int i,j;
   int img[size.z];
@@ -27,6 +24,10 @@
   }
   printf("\n");
 ******************* Fim do Teste *********************/
+
+extern "C"
+void cudaCanny(unsigned char *image, int width, int height, const float gaussianVariance, const unsigned int maxKernelWidth, const unsigned int t1, const unsigned int t2);
+
 
 
 
@@ -733,7 +734,6 @@ void hysteresis(int *d_img, int3 size, const unsigned int t1, const unsigned int
 
 }
 
-extern "C"
 void cudaCanny(unsigned char *image, int width, int height, const float gaussianVariance, const unsigned int maxKernelWidth, const unsigned int t1, const unsigned int t2){
 
   int3 size;
@@ -797,12 +797,4 @@ void cudaCanny(unsigned char *image, int width, int height, const float gaussian
   cutStopTimer( timer );  ///< Stop timer
   printf("cudaCanny total time = %f ms\n",cutGetTimerValue( timer ));
 
-}
-
-namespace itk{
-
-template<class TInputImage> 
-void CudaCannyFilter<TInputImage>::Update(){
-  cudaCanny(image,width,height,gaussianVariance,maxKernelWidth,Tl,Th);
-}
 }
