@@ -18,7 +18,7 @@ set(CUDA_NVCC_FLAGS
 )
 
 CUDA_ADD_EXECUTABLE(../bin/cudacanny
-  itkCudaCannyFilter.cxx
+  itkCudaCannyEdgeDetectionImageFilter.txx
   cudacanny.cxx
   canny.cu
 )
