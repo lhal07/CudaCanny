@@ -1,12 +1,8 @@
-
-
 # Note set CUDA_BUILD_EMULATION to OFF to enable Device mode compilation.
 
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6.2)
 
 PROJECT(cudacanny)
-
-#set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMake/cuda" ${CMAKE_MODULE_PATH})
 
 # find_package(CUDA)
 FIND_PACKAGE(CUDA QUIET REQUIRED)
