@@ -25,7 +25,6 @@
 #include <stdlib.h>
 
 #include "itkImage.h"
-#include "itkPNGImageIO.h"
 #include "itkImageFileReader.h"
 #include "itkImageFileWriter.h"
 #include "itkCudaCannyEdgeDetectionImageFilter.h"
