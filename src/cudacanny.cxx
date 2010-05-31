@@ -72,16 +72,13 @@ int main (int argc, char** argv){
   /* apply canny operator */
 
   CannyFilter::Pointer canny = CannyFilter::New();
-  canny->UpdateInCUDA(image->GetBufferPointer(),imageSize[0],imageSize[1],gaussianVariance,maxKernelWidth,t1,t2);
-
-//  cudaCanny(image->GetBufferPointer(),imageSize[0],imageSize[1],gaussianVariance,maxKernelWidth,t1,t2);
-//  itk::CudaCannyFilter<ImageType> canny;
-//  canny.SetInput(image->GetBufferPointer());
-//  canny.SetSize(imageSize[0],imageSize[1]);
-//  canny.SetVariance(gaussianVariance);
-//  canny.SetMaxKernelWidth(maxKernelWidth);
-//  canny.SetThreshold(t1,t2);
-//  canny.Update();
+//  canny->SetInput(reader->GetOutput());
+  canny->SetVariance(gaussianVariance);
+  canny->SetUpperThreshold(t2);
+  canny->SetLowerThreshold(t1);
+//  canny->SetMaxKernelWidth(maxKernelWidth);
+  canny->UpdateInCUDA(image->GetBufferPointer(),imageSize[0],imageSize[1],gaussianVariance,maxKernelWidth);
+//  canny->Update();
 
   gettimeofday(&tv2,NULL);
  
