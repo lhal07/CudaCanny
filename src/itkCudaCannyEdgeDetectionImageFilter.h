@@ -216,16 +216,21 @@ public:
     return this->m_MultiplyImageFilter->GetOutput();
     }
 
-  void UpdateInCUDA(float *image, int width, int height, const float gaussianVariance, const unsigned int maxKernelWidth)
+  void UpdateInCUDA(float *image, const float gaussianVariance, const unsigned int maxKernelWidth)
   {
+
+    this->GetOutput()->SetBufferedRegion( this->GetOutput()->GetRequestedRegion() );
+    this->GetOutput()->Allocate();
+    typename  InputImageType::ConstPointer  input  = this->GetInput();
+
     typename InputImageType::SizeType size;
+    size = input->GetLargestPossibleRegion().GetSize();
+    printf("Image Size: (%ld,%ld)\n",size[0],size[1]);
 
     printf("UpperThreshold: %f\n",this->m_UpperThreshold);
     printf("LowerThreshold: %f\n",this->m_LowerThreshold);
-    size = this->GetOutput()->GetLargestPossibleRegion().GetSize();
-    printf("Image Size: (%ld,%ld)\n",size[0],size[1]);
 
-    cudaCanny(image, width, height, gaussianVariance, maxKernelWidth, this->m_LowerThreshold, this->m_UpperThreshold);
+    cudaCanny(image, size[0], size[1], gaussianVariance, maxKernelWidth, this->m_LowerThreshold, this->m_UpperThreshold);
   }
 
   /** CannyEdgeDetectionImageFilter needs a larger input requested

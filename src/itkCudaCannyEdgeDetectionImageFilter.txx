@@ -367,8 +367,6 @@ CannyEdgeDetectionImageFilter< TInputImage, TOutputImage >
   //Then do the double threshoulding upon the edge reponses
   this->HysteresisThresholding();
 
-  printf("Meu Canny");
-
 }
 
 template< class TInputImage, class TOutputImage >

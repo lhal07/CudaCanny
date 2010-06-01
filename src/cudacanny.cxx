@@ -68,19 +68,18 @@ int main (int argc, char** argv){
   reader->SetFileName( argv[1] );
   reader->Update();
   ImageType::Pointer image = reader->GetOutput();
-  ImageType::SizeType imageSize = image->GetLargestPossibleRegion().GetSize();
 
   gettimeofday(&tv1,NULL);
 
   /* apply canny operator */
 
   CannyFilter::Pointer canny = CannyFilter::New();
-//  canny->SetInput(reader->GetOutput());
+  canny->SetInput(reader->GetOutput());
   canny->SetVariance(gaussianVariance);
   canny->SetUpperThreshold(t2);
   canny->SetLowerThreshold(t1);
 //  canny->SetMaxKernelWidth(maxKernelWidth);
-  canny->UpdateInCUDA(image->GetBufferPointer(),imageSize[0],imageSize[1],gaussianVariance,maxKernelWidth);
+  canny->UpdateInCUDA(image->GetBufferPointer(),gaussianVariance,maxKernelWidth);
 //  canny->Update();
 
   gettimeofday(&tv2,NULL);
