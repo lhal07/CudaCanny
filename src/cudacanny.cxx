@@ -27,19 +27,22 @@
 #include "itkImage.h"
 #include "itkImageFileReader.h"
 #include "itkImageFileWriter.h"
+#include "itkRescaleIntensityImageFilter.h"
 #include "itkCudaCannyEdgeDetectionImageFilter.h"
 
 //para teste
 #include <time.h>
 #include <sys/time.h>
 
-typedef unsigned char                                              PixelType;
-typedef float                                                 FloatPixelType;
-typedef itk::Image<PixelType,2>                                    ImageType;
-typedef itk::Image<FloatPixelType,2>                          FloatImageType;
+typedef unsigned char                                          ucharPixelType;
+typedef float                                                       PixelType;
+typedef itk::Image<PixelType,2>                                     ImageType;
+typedef itk::Image<ucharPixelType,2>                           ucharImageType;
 typedef itk::ImageFileReader< ImageType >                          ReaderType;
-typedef itk::ImageFileWriter< ImageType >                          WriterType;
-typedef itk::CannyEdgeDetectionImageFilter< FloatImageType, FloatImageType > CannyFilter;
+typedef itk::ImageFileWriter< ucharImageType >                     WriterType;
+//typedef itk::CannyEdgeDetectionImageFilter< FloatImageType, FloatImageType > CannyFilter;
+typedef itk::CannyEdgeDetectionImageFilter< ImageType, ImageType > CannyFilter;
+typedef itk::RescaleIntensityImageFilter< ImageType, ucharImageType > RescaleFilter;
 
 
 int main (int argc, char** argv){
@@ -82,10 +85,15 @@ int main (int argc, char** argv){
 
   gettimeofday(&tv2,NULL);
  
+  RescaleFilter::Pointer rescale = RescaleFilter::New();
+  rescale->SetOutputMinimum(   0 );
+  rescale->SetOutputMaximum( 255 );
+  rescale->SetInput( image );
+
   //write image to file
   WriterType::Pointer writer = WriterType::New();
   writer->SetFileName( argv[2] );
-  writer->SetInput( image );
+  writer->SetInput( rescale->GetOutput() );
   writer->Update();
 
   if(tv1.tv_usec > tv2.tv_usec)

@@ -34,7 +34,7 @@
 #include <stdlib.h>
 
 extern "C"
-void cudaCanny(unsigned char *image, int width, int height, const float gaussianVariance, const unsigned int maxKernelWidth, const unsigned int t1, const unsigned int t2);
+void cudaCanny(float *image, int width, int height, const float gaussianVariance, const unsigned int maxKernelWidth, const unsigned int t1, const unsigned int t2);
 
 namespace itk
 {
@@ -216,7 +216,7 @@ public:
     return this->m_MultiplyImageFilter->GetOutput();
     }
 
-  void UpdateInCUDA(unsigned char *image, int width, int height, const float gaussianVariance, const unsigned int maxKernelWidth)
+  void UpdateInCUDA(float *image, int width, int height, const float gaussianVariance, const unsigned int maxKernelWidth)
   {
     typename InputImageType::SizeType size;
 

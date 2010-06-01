@@ -26,18 +26,18 @@
 ******************* Fim do Teste *********************/
 
 extern "C"
-void cudaCanny(unsigned char *image, int width, int height, const float gaussianVariance, const unsigned int maxKernelWidth, const unsigned int t1, const unsigned int t2);
+void cudaCanny(float *image, int width, int height, const float gaussianVariance, const unsigned int maxKernelWidth, const unsigned int t1, const unsigned int t2);
 
 
 
 
 /// allocate texture variables
-texture<int, 1, cudaReadModeElementType> texRef;
-texture<int, 1, cudaReadModeElementType> gaussTexRef;
-texture<int, 1, cudaReadModeElementType> maxTexRef;
-texture<int, 1, cudaReadModeElementType> gx_texRef;
-texture<int, 1, cudaReadModeElementType> gy_texRef;
-texture<uint, 1, cudaReadModeElementType> mag_texRef;
+texture<float, 1, cudaReadModeElementType> texRef;
+texture<float, 1, cudaReadModeElementType> gaussTexRef;
+texture<float, 1, cudaReadModeElementType> maxTexRef;
+texture<float, 1, cudaReadModeElementType> gx_texRef;
+texture<float, 1, cudaReadModeElementType> gy_texRef;
+texture<float, 1, cudaReadModeElementType> mag_texRef;
 texture<short2, 1, cudaReadModeElementType> dir_texRef;
 texture<unsigned char, 1, cudaReadModeElementType> charTexRef;
 texture<int, 1, cudaReadModeElementType> hysTexRef;
@@ -155,7 +155,7 @@ void gpuOutput(int *image, unsigned char *output, int numElements){
 }
 
 
-__global__ void calculateGaussianKernel(int *gaussKernel, const float sigma, int kernelWidth){
+__global__ void calculateGaussianKernel(float *gaussKernel, const float sigma, int kernelWidth){
 
   ///pixel index of this thread
   int pixIdx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -170,18 +170,18 @@ __global__ void calculateGaussianKernel(int *gaussKernel, const float sigma, int
 
   smaller = s_gaussKernel[0];
 
-  gaussKernel[pixIdx] = ceilf(s_gaussKernel[threadIdx.x]/smaller);
+  gaussKernel[pixIdx] = s_gaussKernel[threadIdx.x]/smaller;
 
 }
 
-__global__ void kernel_1DConvolutionH_texture(int *output, int3 size, int kernelsize){
+__global__ void kernel_1DConvolutionH_texture(float *output, int3 size, int kernelsize){
 ///this version uses the texture memory to store the gaussian kernel and the
 ///image data
 
   int2 sum;
   int2 pos;
 
-  extern __shared__ int s_gauss[];
+  extern __shared__ float s_gauss[];
 
   ///pixel index of this thread
   int pixIdx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -206,14 +206,14 @@ __global__ void kernel_1DConvolutionH_texture(int *output, int3 size, int kernel
     output[pixIdx] = sum.x;
 }
 
-__global__ void kernel_1DConvolutionV_texture(int *output, int3 size, int kernelsize){
+__global__ void kernel_1DConvolutionV_texture(float *output, int3 size, int kernelsize){
 ///this version uses the texture memory to store the gaussian kernel and the
 ///image data
 
   int2 sum;
   int2 pos;
 
-  extern __shared__ int s_gauss[];
+  extern __shared__ float s_gauss[];
 
   ///pixel index of this thread
   int pixIdx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -239,14 +239,14 @@ __global__ void kernel_1DConvolutionV_texture(int *output, int3 size, int kernel
 }
 
 extern "C"
-void cudaGaussian(int *d_img, int3 size, const float gaussianVariance, unsigned int maxKernelWidth){
+void cudaGaussian(float *d_img, int3 size, const float gaussianVariance, unsigned int maxKernelWidth){
 
   int threadsPerBlock = 256;
   int blocksPerGrid = ((size.z) + threadsPerBlock -1) >> 8;
   dim3 DimBlock(threadsPerBlock,1,1);
   dim3 DimGrid(blocksPerGrid,1,1);
 
-  int kernelSize = maxKernelWidth*sizeof(int);
+  int kernelSize = maxKernelWidth*sizeof(float);
 
   unsigned int timer = 0;
   cutCreateTimer( &timer );
@@ -256,7 +256,7 @@ void cudaGaussian(int *d_img, int3 size, const float gaussianVariance, unsigned 
   if (maxKernelWidth%2 == 0) maxKernelWidth--;
 
 ///calculate gaussian mask
-  int *cudaGaussKernel;
+  float *cudaGaussKernel;
   cudaMalloc((void**)&cudaGaussKernel,kernelSize);
 
   calculateGaussianKernel<<<1,maxKernelWidth,kernelSize>>>(cudaGaussKernel, gaussianVariance, maxKernelWidth);
@@ -264,8 +264,8 @@ void cudaGaussian(int *d_img, int3 size, const float gaussianVariance, unsigned 
 ///use calculated mask to gaussian filter
 
   ///allocate temporary memory to image data
-  int *d_tmp;
-  cudaMalloc((void**) &d_tmp, size.z*sizeof(int));
+  float *d_tmp;
+  cudaMalloc((void**) &d_tmp, size.z*sizeof(float));
 
   /// bind a texture to the CUDA array
   cudaBindTexture (NULL, gaussTexRef, cudaGaussKernel);
@@ -306,18 +306,18 @@ void cudaGaussian(int *d_img, int3 size, const float gaussianVariance, unsigned 
 
 }
 
-__global__ void kernel_2DSobel(uint *Magnitude, short2* Direction, int3 size){
+__global__ void kernel_2DSobel(float *Magnitude, short2* Direction, int3 size){
 /// This is an less elaborated kernel version that calculate the sobel-x, sobel-y, 
 /// then uses the calculated values to return to memory just the needed information.
 /// That is, the magnitude and direction of the edge.
 /// It ignores completely the borders of the image becausa the border's pixels
 /// doesn't have all neighbors
 
-  int2 g_i;
+  float2 g_i;
   g_i.x = g_i.y = 0;
   int theta;
-  int4 diagonal;
-  int4 cross;
+  float4 diagonal;
+  float4 cross;
 
   /// Pixel index of this thread
   int pixIdx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -386,7 +386,7 @@ __global__ void kernel_2DSobel(uint *Magnitude, short2* Direction, int3 size){
 
 
 extern "C"
-void cudaSobel(uint* d_mag, short2 *d_dir, int *d_img, int3 size){
+void cudaSobel(float* d_mag, short2 *d_dir, float *d_img, int3 size){
 
   int threadsPerBlock = 256;
   int blocksPerGrid = ((size.z) + threadsPerBlock -1) >> 8;
@@ -417,13 +417,13 @@ void cudaSobel(uint* d_mag, short2 *d_dir, int *d_img, int3 size){
 
 }
 
-__global__ void nonMaximumSupression_texture(int* image, int3 size, int borderSize){
+__global__ void nonMaximumSupression_texture(float* image, int3 size, int borderSize){
 ///this is the kernel to calculate the non-maximum supression of the image. It is
 ///implemmented using texture fetching. The dependence of inter-block data makes
 ///the use of shared memory hard-boiled.
 
   int i = blockDim.x * blockIdx.x + threadIdx.x;
-  uint mag = 0;
+  float mag = 0;
   short2 dir;
 
   ///output pixel index
@@ -442,7 +442,7 @@ __global__ void nonMaximumSupression_texture(int* image, int3 size, int borderSi
 }
 
 extern "C"
-void gradientMaximumDetector(int *d_img, uint *d_mag, short2 *d_dir, int3 size, int gaussKernelWidth){
+void gradientMaximumDetector(float *d_img, float *d_mag, short2 *d_dir, int3 size, int gaussKernelWidth){
 
   int threadsPerBlock = 256;
   int blocksPerGrid = ((size.z) + threadsPerBlock -1) >> 8;
@@ -514,7 +514,7 @@ __global__ void hysteresisPreparation(int *hysteresis, int3 size, const unsigned
 }
 
 
-__global__ void hysteresisWrite(int *output, int3 size){
+__global__ void hysteresisWrite(float *output, int3 size){
 
   ///pixel index of this thread
   int pixIdx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -625,7 +625,7 @@ __global__ void kernel_hysteresis_glm2(int *hys_img, int3 size, int *modif){//, 
 }
 
 extern "C"
-void hysteresis(int *d_img, int3 size, const unsigned int t1, const unsigned int t2){
+void hysteresis(float *d_img, int3 size, const unsigned int t1, const unsigned int t2){
 
   unsigned int timer = 0;
   cutCreateTimer( &timer );
@@ -633,10 +633,6 @@ void hysteresis(int *d_img, int3 size, const unsigned int t1, const unsigned int
 
   int threadsPerBlock = 256;
   int blocksPerGrid = (size.z + threadsPerBlock -1) >> 8;
-  dim3 StridedDimBlock(threadsPerBlock);
-  dim3 StridedDimGrid(blocksPerGrid);
-
-  blocksPerGrid = (size.z + threadsPerBlock -1) >> 8;
   dim3 DimBlock(threadsPerBlock);
   dim3 DimGrid(blocksPerGrid);
 
@@ -650,7 +646,7 @@ void hysteresis(int *d_img, int3 size, const unsigned int t1, const unsigned int
   printf("nBlocks: %d\n",nBlocks);
 
   int *d_hys;
-  cudaMalloc((void**) &d_hys, (size.z*sizeof(int)));
+  cudaMalloc((void**) &d_hys, (size.z*sizeof(float)));
   CUT_CHECK_ERROR("Memory hysteresis image creation failed");
 
   /// bind a texture to the CUDA array
@@ -661,7 +657,7 @@ void hysteresis(int *d_img, int3 size, const unsigned int t1, const unsigned int
   texRef.normalized = false;
   texRef.filterMode = cudaFilterModePoint;
  
-  hysteresisPreparation<<<StridedDimGrid,StridedDimBlock>>>(d_hys, size, t1, t2);
+  hysteresisPreparation<<<DimGrid,DimBlock>>>(d_hys, size, t1, t2);
 
   /// free allocated memory
   cudaUnbindTexture(texRef);
@@ -734,13 +730,13 @@ void hysteresis(int *d_img, int3 size, const unsigned int t1, const unsigned int
 
 }
 
-void cudaCanny(unsigned char *image, int width, int height, const float gaussianVariance, const unsigned int maxKernelWidth, const unsigned int t1, const unsigned int t2){
+void cudaCanny(float *image, int width, int height, const float gaussianVariance, const unsigned int maxKernelWidth, const unsigned int t1, const unsigned int t2){
 
   int3 size;
   size.x = width;
   size.y = height;
   size.z = width*height;
-  int imageSize = size.z*sizeof(int);
+  int imageSize = size.z*sizeof(float);
 
   ///Warmup
   unsigned int WarmupTimer = 0;
@@ -754,17 +750,17 @@ void cudaCanny(unsigned char *image, int width, int height, const float gaussian
   cutStopTimer( WarmupTimer );
   printf("Warmup time = %f ms\n",cutGetTimerValue( WarmupTimer ));
 
-
   unsigned int timer = 0;
   cutCreateTimer( &timer );
   cutStartTimer( timer );  ///< Start timer
 
   /// alocate memory on gpu for image
-  int *d_image;
+  float *d_image;
   cudaMalloc((void**) &d_image, imageSize);
   CUT_CHECK_ERROR("Image memory creation failed");
 
-  gpuInput(image,d_image,size.z);
+//  gpuInput(image,d_image,size.z);
+  cudaMemcpy(d_image,image,size.z*sizeof(float),cudaMemcpyHostToDevice);
 
   cudaGaussian(d_image,size,gaussianVariance,maxKernelWidth);
 
@@ -772,8 +768,8 @@ void cudaCanny(unsigned char *image, int width, int height, const float gaussian
   short2 *d_direction;
   cudaMalloc((void**) &d_direction, size.z*sizeof(short2));
   CUT_CHECK_ERROR("Image memory direction creation failed");
-  uint *d_magnitude;
-  cudaMalloc((void**) &d_magnitude, size.z*sizeof(uint));
+  float *d_magnitude;
+  cudaMalloc((void**) &d_magnitude, size.z*sizeof(float));
   CUT_CHECK_ERROR("Memory temporary image creation failed");
 
   cudaSobel(d_magnitude,d_direction,d_image,size);
@@ -787,7 +783,8 @@ void cudaCanny(unsigned char *image, int width, int height, const float gaussian
 
   hysteresis(d_image,size,t1,t2);
 
-  gpuOutput(d_image,image,size.z);
+//  gpuOutput(d_image,image,size.z);
+  cudaMemcpy(image,d_image,size.z*sizeof(float),cudaMemcpyDeviceToHost);
 
   /// free memory used for image magnitude
   cudaFree(d_image);
