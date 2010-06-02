@@ -67,7 +67,6 @@ int main (int argc, char** argv){
   ReaderType::Pointer reader = ReaderType::New();
   reader->SetFileName( argv[1] );
   reader->Update();
-  ImageType::Pointer image = reader->GetOutput();
 
   gettimeofday(&tv1,NULL);
 
@@ -79,7 +78,7 @@ int main (int argc, char** argv){
   canny->SetUpperThreshold(t2);
   canny->SetLowerThreshold(t1);
 //  canny->SetMaxKernelWidth(maxKernelWidth);
-  canny->UpdateInCUDA(image->GetBufferPointer(),gaussianVariance,maxKernelWidth);
+//  canny->UpdateInCUDA(image->GetBufferPointer(),maxKernelWidth);
 //  canny->Update();
 
   gettimeofday(&tv2,NULL);
@@ -87,7 +86,8 @@ int main (int argc, char** argv){
   RescaleFilter::Pointer rescale = RescaleFilter::New();
   rescale->SetOutputMinimum(   0 );
   rescale->SetOutputMaximum( 255 );
-  rescale->SetInput( image );
+  rescale->SetInput( canny->GetOutput() );
+//  rescale->SetInput( canny->GetInput() ); // is canny overwriting it's input?
 
   //write image to file
   WriterType::Pointer writer = WriterType::New();
