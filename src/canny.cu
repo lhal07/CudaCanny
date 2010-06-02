@@ -301,7 +301,6 @@ void cudaGaussian(float *d_img, int3 size, const float gaussianVariance, unsigne
   cudaThreadSynchronize();
   cutStopTimer( timer );  /// Stop timer
   printf("Gaussian time = %f ms\n",cutGetTimerValue( timer ));
-  printf("\'->Sigma:%f; KernelWidth:%d;\n",gaussianVariance,maxKernelWidth);
 
 
 }
@@ -643,8 +642,6 @@ void hysteresis(float *d_img, int3 size, const unsigned int t1, const unsigned i
   dim3 TwoDimBlock(16,16,1);
   dim3 TwoDimGrid(blocksPerGridX,blocksPerGridY,1);
 
-  printf("nBlocks: %d\n",nBlocks);
-
   int *d_hys;
   cudaMalloc((void**) &d_hys, (size.z*sizeof(float)));
   CUT_CHECK_ERROR("Memory hysteresis image creation failed");
@@ -731,6 +728,12 @@ void hysteresis(float *d_img, int3 size, const unsigned int t1, const unsigned i
 }
 
 void cudaCanny(float *image, int width, int height, const float gaussianVariance, const unsigned int maxKernelWidth, const unsigned int t1, const unsigned int t2){
+
+  printf(" Parameters:\n");
+  printf(" |-Image Size: (%d,%d)\n",width,height);
+  printf(" |-Variance: %f\n",gaussianVariance);
+  printf(" |-Max Kernel Width: %d\n",maxKernelWidth);
+  printf(" --Thresholds: (%d,%d)\n",t2,t1);
 
   int3 size;
   size.x = width;
