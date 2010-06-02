@@ -29,10 +29,6 @@
 #include "itkSparseFieldLayer.h"
 #include "itkObjectStore.h"
 
-//remove this later
-#include <stdio.h>
-#include <stdlib.h>
-
 extern "C"
 void cudaCanny(float *image, int width, int height, const float gaussianVariance, const unsigned int maxKernelWidth, const unsigned int t1, const unsigned int t2);
 
@@ -216,7 +212,7 @@ public:
     return this->m_MultiplyImageFilter->GetOutput();
     }
 
-  void UpdateInCUDA(float *image, const float gaussianVariance, const unsigned int maxKernelWidth)
+  void UpdateInCUDA(float *image, const unsigned int maxKernelWidth)
   {
 
     this->GetOutput()->SetBufferedRegion( this->GetOutput()->GetRequestedRegion() );
@@ -225,12 +221,8 @@ public:
 
     typename InputImageType::SizeType size;
     size = input->GetLargestPossibleRegion().GetSize();
-    printf("Image Size: (%ld,%ld)\n",size[0],size[1]);
 
-    printf("UpperThreshold: %f\n",this->m_UpperThreshold);
-    printf("LowerThreshold: %f\n",this->m_LowerThreshold);
-
-    cudaCanny(image, size[0], size[1], gaussianVariance, maxKernelWidth, this->m_LowerThreshold, this->m_UpperThreshold);
+  cudaCanny(image, size[0], size[1], (float) m_Variance[0], maxKernelWidth, this->m_LowerThreshold, this->m_UpperThreshold);
   }
 
   /** CannyEdgeDetectionImageFilter needs a larger input requested
