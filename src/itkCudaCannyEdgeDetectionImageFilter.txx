@@ -312,27 +312,29 @@ void
 CannyEdgeDetectionImageFilter< TInputImage, TOutputImage >
 ::GenerateData()
 {
-  // Allocate the output
-//  this->GetOutput()->SetBufferedRegion( this->GetOutput()->GetRequestedRegion() );
-//  this->GetOutput()->Allocate();
 
-//  typename  InputImageType::Pointer  input  = const_cast<InputImageType*> (this->GetInput());
-  typename  InputImageType::ConstPointer  input  = this->GetInput();
-  
-  this->GetOutput()->CopyInformation( input );
-  this->GetOutput()->SetRequestedRegion(input->GetRequestedRegion());
-  this->GetOutput()->SetBufferedRegion(input->GetBufferedRegion());
-  this->GetOutput()->Allocate();  
+  // Get input and output image pointers
+  typename InputImageType::ConstPointer input = this->GetInput();
+  typename OutputImageType::Pointer output = this->GetOutput();
+
+  // Get info from input image and allocate the output
+  output->SetBufferedRegion(input->GetBufferedRegion());
+//  output->CopyInformation( input );
+  output->Allocate();  
 
   // Get image size
-  typename InputImageType::SizeType size;
-  size = this->GetOutput()->GetLargestPossibleRegion().GetSize();
+  typename OutputImageType::SizeType size;
+  size = output->GetLargestPossibleRegion().GetSize();
+
+  // Copy iinput image date to output image
+  // Is there an ITK way to do this? Maybe CopyInformation() method?
+  memcpy(output->GetBufferPointer(),input->GetBufferPointer(),size[0]*size[1]*sizeof(float));
 
   // Temporary KernelWidth definition
   const float maxKernelWidth = 5;
 
-  // cudaCanny call defined on canny.cu
-  cudaCanny(this->GetOutput()->GetBufferPointer(), size[0], size[1], (float) m_Variance[0], maxKernelWidth, this->m_LowerThreshold, this->m_UpperThreshold);
+  // Call cudaCanny. Defined on canny.cu
+  cudaCanny(output->GetBufferPointer(), size[0], size[1], (float) m_Variance[0], maxKernelWidth, this->m_LowerThreshold, this->m_UpperThreshold);
 
 
 /************ Original Canny ***************

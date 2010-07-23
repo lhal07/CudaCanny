@@ -79,7 +79,7 @@ int main (int argc, char** argv){
   canny->SetLowerThreshold(t1);
 //  canny->SetMaxKernelWidth(maxKernelWidth);
 //  canny->UpdateInCUDA(image->GetBufferPointer(),maxKernelWidth);
-//  canny->Update();
+  canny->Update();
 
   gettimeofday(&tv2,NULL);
  
