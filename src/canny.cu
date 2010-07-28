@@ -554,9 +554,8 @@ __global__ void kernel_hysteresis_glm2(int *hys_img, int3 size){
 
   __shared__ float s_slice[18][18];
   __shared__ int s_modified[256];
-//  __device__ int modified[4];
+  __shared__ int m;
 
-//  int modDim = blockDim.y * blockDim.x;
   int tid = blockDim.x * threadIdx.y + threadIdx.x;
   
   ///pixel index of this thread
@@ -568,103 +567,106 @@ __global__ void kernel_hysteresis_glm2(int *hys_img, int3 size){
   sliceIdx.x = threadIdx.x+1;
   sliceIdx.y = threadIdx.y+1;
   int edge;
-  int a,i;
+  int i;
 
   ///load center
   s_slice[sliceIdx.y][sliceIdx.x] = hys_img[pixIdx];
   s_modified[tid] = 1;
+  if ((threadIdx.x + threadIdx.y) == 0) m = 0;
 
   for (i=0;i<100;i++){
 
-    ///load top
-    if(!threadIdx.y){
-      if(!threadIdx.x){
-        s_slice[0][0] = ((pos.x>0)||(pos.y>0)) * hys_img[pixIdx-size.x-1];///<TL
+    if (m){
+      ///store top
+      if(!threadIdx.y && (pos.y>0)){
+        if(!threadIdx.x){
+          hys_img[pixIdx-size.x-1] = s_slice[0][0];///<TL
+        }
+        hys_img[pixIdx-size.x] = s_slice[0][sliceIdx.x];
+        if(threadIdx.x == (blockDim.x-1)){
+          hys_img[pixIdx-size.x+1] = s_slice[0][blockDim.x+1];///<TR
+        }
       }
-      s_slice[0][sliceIdx.x] = (pos.y>0) * hys_img[pixIdx-size.x];
-      if(threadIdx.x == (blockDim.x-1)){
-         s_slice[0][blockDim.x+1] = ((pos.x<(size.x-1))&&(pos.y>0)) * hys_img[pixIdx-size.x+1];///<TR
+
+      ///store bottom
+      if((threadIdx.y == (blockDim.y-1)) && (pos.y<(size.y-1))){
+        if(!threadIdx.x){
+          hys_img[pixIdx+size.x-1] = s_slice[blockDim.y+1][0];///<BL
+        }
+        hys_img[pixIdx+size.x] = s_slice[blockDim.y+1][sliceIdx.x];
+        if(threadIdx.x == (blockDim.x-1)){
+          hys_img[pixIdx+size.x+1] = s_slice[blockDim.y+1][blockDim.x+1];///<BR
+        }
+      }
+    
+      ///store left
+      if(!threadIdx.x && (pos.x>0)){
+        hys_img[pixIdx-1] = s_slice[sliceIdx.y][0];
+      }
+      ///store right
+      if(threadIdx.x == blockDim.x-1){
+        hys_img[pixIdx+1] = s_slice[sliceIdx.y][blockDim.x+1];
       }
     }
-    ///load bottom
-    if(threadIdx.y == (blockDim.y-1)){
-      if(!threadIdx.x){
-        s_slice[blockDim.y+1][0] = ((pos.x>0)&&(pos.y<(size.y-1))) * hys_img[pixIdx+size.x-1];///<BL
+
+    if((!i) || m){
+
+     ///load top
+      if(!threadIdx.y){
+        if(!threadIdx.x){
+          s_slice[0][0] = ((pos.x>0)||(pos.y>0)) * hys_img[pixIdx-size.x-1];///<TL
+        }
+        s_slice[0][sliceIdx.x] = (pos.y>0) * hys_img[pixIdx-size.x];
+        if(threadIdx.x == (blockDim.x-1)){
+           s_slice[0][blockDim.x+1] = ((pos.x<(size.x-1))&&(pos.y>0)) * hys_img[pixIdx-size.x+1];///<TR
+        }
       }
-      s_slice[blockDim.y+1][sliceIdx.x] = (pos.y<(size.y-1)) * hys_img[pixIdx+size.x];
-      if(threadIdx.x == (blockDim.x-1)){
-        s_slice[blockDim.y+1][blockDim.x+1] = ((pos.x<(size.x-1))&&(pos.y<(size.y-1))) * hys_img[pixIdx+size.x+1];///<BR
+      ///load bottom
+      if(threadIdx.y == (blockDim.y-1)){
+        if(!threadIdx.x){
+          s_slice[blockDim.y+1][0] = ((pos.x>0)&&(pos.y<(size.y-1))) * hys_img[pixIdx+size.x-1];///<BL
+        }
+        s_slice[blockDim.y+1][sliceIdx.x] = (pos.y<(size.y-1)) * hys_img[pixIdx+size.x];
+        if(threadIdx.x == (blockDim.x-1)){
+          s_slice[blockDim.y+1][blockDim.x+1] = ((pos.x<(size.x-1))&&(pos.y<(size.y-1))) * hys_img[pixIdx+size.x+1];///<BR
+        }
       }
-    }
   
-    ///load left
-    if(!threadIdx.x){
-      s_slice[sliceIdx.y][0] = (pos.x>0) * hys_img[pixIdx-1];
-    }
-    ///load right
-    if(threadIdx.x == blockDim.x-1){
-      s_slice[sliceIdx.y][blockDim.x+1] = (pos.x<(size.x-1)) * hys_img[pixIdx+1];
+      ///load left
+      if(!threadIdx.x){
+        s_slice[sliceIdx.y][0] = (pos.x>0) * hys_img[pixIdx-1];
+      }
+      ///load right
+      if(threadIdx.x == blockDim.x-1){
+        s_slice[sliceIdx.y][blockDim.x+1] = (pos.x<(size.x-1)) * hys_img[pixIdx+1];
+      }
     }
 
-//    while(reduceSum(tid,s_modified)){
-    for(a=0; a<1000; a++){
+    while(!reduceSum(tid,s_modified)){
 
-    s_modified[tid] = 0;
+      s_modified[tid] = 0;
 
       if(s_slice[sliceIdx.y][sliceIdx.x] == 128){
 
-        __threadfence_block();
+        __syncthreads();
 
         /// edge == 1 if at last one pixel's neighbour is a definitive edge 
         /// and edge == 0 if doesn't
         edge = (!(s_slice[sliceIdx.y-1][sliceIdx.x-1] != 255) *\
-               (s_slice[sliceIdx.y-1][sliceIdx.x] != 255) *\
-               (s_slice[sliceIdx.y-1][sliceIdx.x+1] != 255) *\
-               (s_slice[sliceIdx.y][sliceIdx.x-1] != 255) *\
-               (s_slice[sliceIdx.y][sliceIdx.x+1] != 255) *\
-               (s_slice[sliceIdx.y+1][sliceIdx.x-1] != 255) *\
-               (s_slice[sliceIdx.y+1][sliceIdx.x] != 255) *\
-               (s_slice[sliceIdx.y+1][sliceIdx.x+1] != 255));
+                 (s_slice[sliceIdx.y-1][sliceIdx.x] != 255) *\
+                 (s_slice[sliceIdx.y-1][sliceIdx.x+1] != 255) *\
+                 (s_slice[sliceIdx.y][sliceIdx.x-1] != 255) *\
+                 (s_slice[sliceIdx.y][sliceIdx.x+1] != 255) *\
+                 (s_slice[sliceIdx.y+1][sliceIdx.x-1] != 255) *\
+                 (s_slice[sliceIdx.y+1][sliceIdx.x] != 255) *\
+                 (s_slice[sliceIdx.y+1][sliceIdx.x+1] != 255));
 
         s_modified[tid] = (edge);
         s_slice[sliceIdx.y][sliceIdx.x] = (float) (edge)*255;    
       }
 
-      if(reduceSum(tid,s_modified)) break;
+      if ((threadIdx.x+threadIdx.y)==0) m++;
 
-    }
-
-
-
-    ///store top
-    if(!threadIdx.y && (pos.y>0)){
-      if(!threadIdx.x){
-        hys_img[pixIdx-size.x-1] = s_slice[0][0];///<TL
-      }
-      hys_img[pixIdx-size.x] = s_slice[0][sliceIdx.x];
-      if(threadIdx.x == (blockDim.x-1)){
-        hys_img[pixIdx-size.x+1] = s_slice[0][blockDim.x+1];///<TR
-      }
-    }
-
-    ///store bottom
-    if((threadIdx.y == (blockDim.y-1)) && (pos.y<(size.y-1))){
-      if(!threadIdx.x){
-        hys_img[pixIdx+size.x-1] = s_slice[blockDim.y+1][0];///<BL
-      }
-      hys_img[pixIdx+size.x] = s_slice[blockDim.y+1][sliceIdx.x];
-      if(threadIdx.x == (blockDim.x-1)){
-        hys_img[pixIdx+size.x+1] = s_slice[blockDim.y+1][blockDim.x+1];///<BR
-      }
-    }
-
-    ///store left
-    if(!threadIdx.x && (pos.x>0)){
-      hys_img[pixIdx-1] = s_slice[sliceIdx.y][0];
-    }
-    ///store right
-    if(threadIdx.x == blockDim.x-1){
-      hys_img[pixIdx+1] = s_slice[sliceIdx.y][blockDim.x+1];
     }
 
   }
@@ -713,9 +715,6 @@ void hysteresis(float *d_img, int3 size, const unsigned int t1, const unsigned i
 
   int *d_modified;
   cudaMalloc((void**) &d_modified, (nBlocks*sizeof(int)));
-  CUT_CHECK_ERROR("Memory hysteresis image creation failed");
-  int *d_modifsum;
-  cudaMalloc((void**) &d_modifsum, (nBlocks*sizeof(int)));
   CUT_CHECK_ERROR("Memory hysteresis image creation failed");
 
   kernel_hysteresis_glm2<<<TwoDimGrid,TwoDimBlock>>>(d_hys, size);
