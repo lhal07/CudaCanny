@@ -571,43 +571,16 @@ __global__ void kernel_hysteresis_glm2(int *hys_img, int3 size){
 
   ///load center
   s_slice[sliceIdx.y][sliceIdx.x] = hys_img[pixIdx];
+
   s_modified[tid] = 1;
   if ((threadIdx.x + threadIdx.y) == 0) m = 0;
 
-  for (i=0;i<100;i++){
+  for (i=0;i<blockDim.x*blockDim.y;i++){
 
     if (m){
-      ///store top
-      if(!threadIdx.y && (pos.y>0)){
-        if(!threadIdx.x){
-          hys_img[pixIdx-size.x-1] = s_slice[0][0];///<TL
-        }
-        hys_img[pixIdx-size.x] = s_slice[0][sliceIdx.x];
-        if(threadIdx.x == (blockDim.x-1)){
-          hys_img[pixIdx-size.x+1] = s_slice[0][blockDim.x+1];///<TR
-        }
-      }
-
-      ///store bottom
-      if((threadIdx.y == (blockDim.y-1)) && (pos.y<(size.y-1))){
-        if(!threadIdx.x){
-          hys_img[pixIdx+size.x-1] = s_slice[blockDim.y+1][0];///<BL
-        }
-        hys_img[pixIdx+size.x] = s_slice[blockDim.y+1][sliceIdx.x];
-        if(threadIdx.x == (blockDim.x-1)){
-          hys_img[pixIdx+size.x+1] = s_slice[blockDim.y+1][blockDim.x+1];///<BR
-        }
-      }
-    
-      ///store left
-      if(!threadIdx.x && (pos.x>0)){
-        hys_img[pixIdx-1] = s_slice[sliceIdx.y][0];
-      }
-      ///store right
-      if(threadIdx.x == blockDim.x-1){
-        hys_img[pixIdx+1] = s_slice[sliceIdx.y][blockDim.x+1];
-      }
-    }
+      //store center
+      hys_img[pixIdx] = s_slice[sliceIdx.x][sliceIdx.y];
+   }
 
     if((!i) || m){
 
@@ -668,6 +641,9 @@ __global__ void kernel_hysteresis_glm2(int *hys_img, int3 size){
       if ((threadIdx.x+threadIdx.y)==0) m++;
 
     }
+
+//    if ((threadIdx.x + threadIdx.y) == 0) modifid[blockIdx.y*gridDim.x + blockIdx.x] = m;
+//    if (!reduceSum(tid,modified)) break;
 
   }
 
