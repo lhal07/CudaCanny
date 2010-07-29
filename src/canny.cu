@@ -528,7 +528,8 @@ __global__ void hysteresisWrite(float *output, int3 size){
 
 }
 
-__device__ int reduceSum(int tid, int data[]){
+__device__ int reduceSum256(int tid, int data[]){
+// data[] should be a 256 positios array
 
   if (tid < 128) { data[tid] += data[tid + 128]; }
   __syncthreads();
@@ -550,13 +551,33 @@ __device__ int reduceSum(int tid, int data[]){
 
 }
 
-__global__ void kernel_hysteresis_glm2(int *hys_img, int3 size){
+__device__ int reduceSum(int tid, int data[], int N, int pow2){
+
+  if (tid<pow2){
+
+    if (tid>=N) data[tid] = 0;
+
+    for(unsigned int s=pow2/2; s>0; s>>=1) {
+      if (tid < s){
+      data[tid] += data[tid + s];
+    }
+      __syncthreads();
+    }
+
+  }
+  return(data[0]);
+
+}
+
+
+__global__ void kernel_hysteresis_glm3(int *hys_img, int3 size, int *modified, int N, int pow2){
 
   __shared__ float s_slice[18][18];
   __shared__ int s_modified[256];
   __shared__ int m;
 
-  int tid = blockDim.x * threadIdx.y + threadIdx.x;
+  int block_tid = blockDim.x * threadIdx.y + threadIdx.x;
+  int tid = block_tid + (blockIdx.x*blockDim.x*blockDim.y)+(blockIdx.y*blockDim.x*blockDim.y*gridDim.x);
   
   ///pixel index of this thread
   int2 pos;
@@ -572,15 +593,16 @@ __global__ void kernel_hysteresis_glm2(int *hys_img, int3 size){
   ///load center
   s_slice[sliceIdx.y][sliceIdx.x] = hys_img[pixIdx];
 
-  s_modified[tid] = 1;
-  if ((threadIdx.x + threadIdx.y) == 0) m = 0;
+  s_modified[block_tid] = 1;
 
-  for (i=0;i<blockDim.x*blockDim.y;i++){
+  do{
+
+    if ((threadIdx.x + threadIdx.y) == 0) m = 0;
 
     if (m){
       //store center
       hys_img[pixIdx] = s_slice[sliceIdx.x][sliceIdx.y];
-   }
+    }
 
     if((!i) || m){
 
@@ -615,9 +637,9 @@ __global__ void kernel_hysteresis_glm2(int *hys_img, int3 size){
       }
     }
 
-    while(!reduceSum(tid,s_modified)){
+    while(!reduceSum256(block_tid,s_modified)){
 
-      s_modified[tid] = 0;
+      s_modified[block_tid] = 0;
 
       if(s_slice[sliceIdx.y][sliceIdx.x] == 128){
 
@@ -634,18 +656,17 @@ __global__ void kernel_hysteresis_glm2(int *hys_img, int3 size){
                  (s_slice[sliceIdx.y+1][sliceIdx.x] != 255) *\
                  (s_slice[sliceIdx.y+1][sliceIdx.x+1] != 255));
 
-        s_modified[tid] = (edge);
-        s_slice[sliceIdx.y][sliceIdx.x] = (float) (edge)*255;    
+        s_modified[block_tid] = (edge);
+        s_slice[sliceIdx.y][sliceIdx.x] = (float) 128 + (edge)*127;    
       }
 
-      if ((threadIdx.x+threadIdx.y)==0) m++;
+      if ((threadIdx.x+threadIdx.y)==0) m = 1;
 
     }
 
-//    if ((threadIdx.x + threadIdx.y) == 0) modifid[blockIdx.y*gridDim.x + blockIdx.x] = m;
-//    if (!reduceSum(tid,modified)) break;
+    if ((threadIdx.x + threadIdx.y) == 0) modified[blockIdx.y*gridDim.x + blockIdx.x] = m;
 
-  }
+  }while(!reduceSum(tid,modified,N,pow2));
 
   if((pos.x < (size.x)) && (pos.y < (size.y))){ 
     hys_img[pixIdx] = s_slice[sliceIdx.y][sliceIdx.x];
@@ -671,6 +692,9 @@ void hysteresis(float *d_img, int3 size, const unsigned int t1, const unsigned i
   dim3 TwoDimBlock(16,16,1);
   dim3 TwoDimGrid(blocksPerGridX,blocksPerGridY,1);
 
+  int pow2 = 1;
+  while (pow2<nBlocks) pow2 = pow2 << 1;
+
   int *d_hys;
   cudaMalloc((void**) &d_hys, (size.z*sizeof(float)));
   CUT_CHECK_ERROR("Memory hysteresis image creation failed");
@@ -690,10 +714,10 @@ void hysteresis(float *d_img, int3 size, const unsigned int t1, const unsigned i
   CUT_CHECK_ERROR("Memory unbind failed");
 
   int *d_modified;
-  cudaMalloc((void**) &d_modified, (nBlocks*sizeof(int)));
+  cudaMalloc((void**) &d_modified, (pow2*sizeof(int)));
   CUT_CHECK_ERROR("Memory hysteresis image creation failed");
 
-  kernel_hysteresis_glm2<<<TwoDimGrid,TwoDimBlock>>>(d_hys, size);
+  kernel_hysteresis_glm3<<<TwoDimGrid,TwoDimBlock>>>(d_hys, size, d_modified, nBlocks, pow2);
   CUT_CHECK_ERROR("Hysteresis Kernel failed");
 
   /// bind a texture to the CUDA array
@@ -711,6 +735,7 @@ void hysteresis(float *d_img, int3 size, const unsigned int t1, const unsigned i
   cudaUnbindTexture(hysTexRef);
   CUT_CHECK_ERROR("Memory unbind failed");
   cudaFree(d_hys);
+  cudaFree(d_modified);
   CUT_CHECK_ERROR("Memory free failed");
 
   
