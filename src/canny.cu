@@ -528,39 +528,38 @@ __global__ void hysteresisWrite(float *output, int3 size){
 
 }
 
-__device__ int reduceSum256(int tid, int data[]){
+__device__ int reduceSum256(int tid, int sdata[]){
 // data[] should be a 256 positios array
 
-  if (tid < 128) { data[tid] += data[tid + 128]; }
+  if (tid < 128) { sdata[tid] += sdata[tid + 128]; }
   __syncthreads();
-  if (tid < 64) { data[tid] += data[tid + 64]; }
+  if (tid < 64) { sdata[tid] += sdata[tid + 64]; }
   __syncthreads();
-  if (tid < 32) { data[tid] += data[tid + 32]; }
+  if (tid < 32) { sdata[tid] += sdata[tid + 32]; }
   __syncthreads();
-  if (tid < 16) { data[tid] += data[tid + 16]; }
+  if (tid < 16) { sdata[tid] += sdata[tid + 16]; }
   __syncthreads();
-  if (tid < 8) { data[tid] += data[tid + 8]; }
+  if (tid < 8) { sdata[tid] += sdata[tid + 8]; }
   __syncthreads();
-  if (tid < 4) { data[tid] += data[tid + 4]; }
+  if (tid < 4) { sdata[tid] += sdata[tid + 4]; }
   __syncthreads();
-  if (tid < 2) { data[tid] += data[tid + 2]; }
+  if (tid < 2) { sdata[tid] += sdata[tid + 2]; }
   __syncthreads();
-  if (tid == 0) { data[tid] += data[tid + 1]; }
-
-  return(data[0]);
+  if (tid == 0) { sdata[tid] += sdata[tid + 1]; }
+  __syncthreads();
+  
+  return(sdata[0]);
 
 }
 
 __device__ int reduceSum(int tid, int data[], int N, int pow2){
 
-  if (tid<pow2){
-
-    if (tid>=N) data[tid] = 0;
+  if (tid<N){
 
     for(unsigned int s=pow2/2; s>0; s>>=1) {
-      if (tid < s){
-      data[tid] += data[tid + s];
-    }
+      if ((tid < s) && (tid + s < pow2)){
+          data[tid] += data[tid+s];
+      }
       __syncthreads();
     }
 
@@ -577,7 +576,7 @@ __global__ void kernel_hysteresis_glm3(int *hys_img, int3 size, int *modified, i
   __shared__ int m;
 
   int block_tid = blockDim.x * threadIdx.y + threadIdx.x;
-  int tid = block_tid + (blockIdx.x*blockDim.x*blockDim.y)+(blockIdx.y*blockDim.x*blockDim.y*gridDim.x);
+  int tid = block_tid + (blockIdx.x*blockDim.x) + (blockIdx.y*blockDim.x*blockDim.y*gridDim.x);
   
   ///pixel index of this thread
   int2 pos;
@@ -588,25 +587,17 @@ __global__ void kernel_hysteresis_glm3(int *hys_img, int3 size, int *modified, i
   sliceIdx.x = threadIdx.x+1;
   sliceIdx.y = threadIdx.y+1;
   int edge;
-  int i;
+  int i = 0;
 
-  ///load center
+  /// load center
   s_slice[sliceIdx.y][sliceIdx.x] = hys_img[pixIdx];
 
-  s_modified[block_tid] = 1;
+  if (!block_tid) m = 1;
 
   do{
 
-    if ((threadIdx.x + threadIdx.y) == 0) m = 0;
-
-    if (m){
-      //store center
-      hys_img[pixIdx] = s_slice[sliceIdx.x][sliceIdx.y];
-    }
-
-    if((!i) || m){
-
-     ///load top
+    if(m){
+      /// load top
       if(!threadIdx.y){
         if(!threadIdx.x){
           s_slice[0][0] = ((pos.x>0)||(pos.y>0)) * hys_img[pixIdx-size.x-1];///<TL
@@ -616,7 +607,7 @@ __global__ void kernel_hysteresis_glm3(int *hys_img, int3 size, int *modified, i
            s_slice[0][blockDim.x+1] = ((pos.x<(size.x-1))&&(pos.y>0)) * hys_img[pixIdx-size.x+1];///<TR
         }
       }
-      ///load bottom
+      /// load bottom
       if(threadIdx.y == (blockDim.y-1)){
         if(!threadIdx.x){
           s_slice[blockDim.y+1][0] = ((pos.x>0)&&(pos.y<(size.y-1))) * hys_img[pixIdx+size.x-1];///<BL
@@ -626,18 +617,20 @@ __global__ void kernel_hysteresis_glm3(int *hys_img, int3 size, int *modified, i
           s_slice[blockDim.y+1][blockDim.x+1] = ((pos.x<(size.x-1))&&(pos.y<(size.y-1))) * hys_img[pixIdx+size.x+1];///<BR
         }
       }
-  
-      ///load left
+      /// load left
       if(!threadIdx.x){
         s_slice[sliceIdx.y][0] = (pos.x>0) * hys_img[pixIdx-1];
       }
-      ///load right
+      /// load right
       if(threadIdx.x == blockDim.x-1){
         s_slice[sliceIdx.y][blockDim.x+1] = (pos.x<(size.x-1)) * hys_img[pixIdx+1];
       }
     }
 
-    while(!reduceSum256(block_tid,s_modified)){
+    if (!block_tid) m = 0;
+
+    for(i=0;i<1;i++){
+//    while(reduceSum256(block_tid, s_modified)){
 
       s_modified[block_tid] = 0;
 
@@ -657,20 +650,146 @@ __global__ void kernel_hysteresis_glm3(int *hys_img, int3 size, int *modified, i
                  (s_slice[sliceIdx.y+1][sliceIdx.x+1] != 255));
 
         s_modified[block_tid] = (edge);
-        s_slice[sliceIdx.y][sliceIdx.x] = (float) 128 + (edge)*127;    
+        s_slice[sliceIdx.y][sliceIdx.x] = (float) 128 + (edge)*127;
+
       }
 
-      if ((threadIdx.x+threadIdx.y)==0) m = 1;
+      /// this means that the inner loop was executed for this block.
+      /// it works because all threads of a block execute the inner loop if at
+      /// last one pixel is modified on it's image slice.
+      if (!block_tid) m = 1;
 
+      __syncthreads();
+
+      if (!reduceSum256(block_tid,s_modified)) break;
+      
     }
 
-    if ((threadIdx.x + threadIdx.y) == 0) modified[blockIdx.y*gridDim.x + blockIdx.x] = m;
+    if (!block_tid) modified[blockIdx.y*gridDim.x + blockIdx.x] = m;
 
-  }while(!reduceSum(tid,modified,N,pow2));
+    if (m){
+      if((pos.x < (size.x)) && (pos.y < (size.y))){
+        /// store center
+        hys_img[pixIdx] = s_slice[sliceIdx.x][sliceIdx.y];
+      }
+    }
+
+    __syncthreads();
+
+//  if (tid<pow2){
+
+//    for(unsigned int s=pow2/2; s>0; s>>=1) {
+//      if ((tid < s) && ((tid+s)<N)){
+//          modified[tid] += modified[tid+s];
+//      }
+//      __syncthreads();
+//    }
+
+//  }
+
+
+if (!block_tid) reduceSum(blockIdx.y*gridDim.x + blockIdx.x,modified,N,pow2);// this function is doing wrong!
+
+//  }while(reduceSum(tid,modified,N,pow2));
+  }while(0);
 
   if((pos.x < (size.x)) && (pos.y < (size.y))){ 
     hys_img[pixIdx] = s_slice[sliceIdx.y][sliceIdx.x];
   }
+
+}
+
+__global__ void kernel_hysteresis_glm1D(int *hys_img, int3 size, int *modified){
+
+  __shared__ float s_slice[324];
+  __shared__ int s_modified[256];
+  int edge;
+  int i;
+
+  // thread index
+  //int tid = blockIdx.x * blockDim.x + threadIdx.x;
+
+  int2 slice_pos;
+  slice_pos.y = threadIdx.x >> 4; // threadIdx.x / 16;
+  slice_pos.x = threadIdx.x - (slice_pos.y << 4);
+
+  int sliceIdx = threadIdx.x + 18 + 1;
+
+  // pixel positions indexes on image
+  int2 pos;
+  pos.x = (slice_pos.x + (blockIdx.x << 4)) % size.x;
+  pos.y = (((((blockIdx.x << 4))) / size.x) << 4 ) + slice_pos.y;
+  
+  // pixel position at the hysteresis image
+  int pixIdx = pos.y * size.x + pos.x;
+
+  // load center
+  s_slice[sliceIdx] = hys_img[pixIdx];
+
+  /// load top
+  if(!slice_pos.y){
+    if(!slice_pos.x){
+      s_slice[0] = ((pos.x>0)||(pos.y>0)) * hys_img[pixIdx-size.x-1];///<TL
+    }
+    s_slice[slice_pos.x+1] = ((pos.y>0)&&(pos.x<size.x-1)) * hys_img[pixIdx-size.x];
+    if(slice_pos.x == (15)){
+      s_slice[17] = ((pos.x<(size.x-1))&&(pos.y>0)) * hys_img[pixIdx-size.x+1];///<TR
+    }
+  }
+  /// load bottom
+  if(slice_pos.y == (15)){
+    if(!slice_pos.x){
+      s_slice[306] = ((pos.x>0)&&(pos.y<(size.y-1))) * hys_img[pixIdx+size.x-1];///<BL
+    }
+    s_slice[307+slice_pos.x] = ((pos.x<(size.x-1))&&(pos.y<(size.y-1))) * hys_img[pixIdx+size.x];
+    if(threadIdx.x == (blockDim.x-1)){
+      s_slice[323] = ((pos.x<(size.x-1))&&(pos.y<(size.y-1))) * hys_img[pixIdx+size.x+1];///<BR
+    }
+  }
+  /// load left
+  if(!threadIdx.x){
+    s_slice[(slice_pos.y+1)*18] = ((pos.x>0)&&(pos.y<size.y-1)) * hys_img[pixIdx-1];
+  }
+  /// load right
+  if(threadIdx.x == blockDim.x-1){
+    s_slice[(slice_pos.y+2)*17] = ((pos.y<(size.y-1))&&(pos.x<(size.x-1))) * hys_img[pixIdx+1];
+  }
+
+  for(i=0;i<256;i++){
+
+    s_modified[threadIdx.x] = 0;
+
+    if(s_slice[sliceIdx] == 128){
+
+      __syncthreads();
+
+      /// edge == 1 if at last one pixel's neighbour is a definitive edge 
+      /// and edge == 0 if doesn't
+      edge = (!(s_slice[sliceIdx-19] != 255) *\
+               (s_slice[sliceIdx-18] != 255) *\
+               (s_slice[sliceIdx-17] != 255) *\
+               (s_slice[sliceIdx-1] != 255) *\
+               (s_slice[sliceIdx+1] != 255) *\
+               (s_slice[sliceIdx+17] != 255) *\
+               (s_slice[sliceIdx+18] != 255) *\
+               (s_slice[sliceIdx+19] != 255));
+      s_modified[threadIdx.x] = (edge);
+      s_slice[sliceIdx] = (float) 128 + (edge)*127;
+
+    }
+
+    reduceSum256(threadIdx.x,s_modified);
+
+    if (!s_modified[0]) break;
+
+  }// end inner loop
+
+  if (!threadIdx.x) modified[blockIdx.x] = s_modified[0];
+
+  __syncthreads();
+
+  hys_img[pixIdx] = s_slice[sliceIdx];
+
 }
 
 extern "C"
@@ -684,11 +803,11 @@ void hysteresis(float *d_img, int3 size, const unsigned int t1, const unsigned i
   int blocksPerGrid = (size.z + threadsPerBlock -1) >> 8;
   dim3 DimBlock(threadsPerBlock);
   dim3 DimGrid(blocksPerGrid);
+  int nBlocks = blocksPerGrid;
 
   int threadsPerBlockDim = 16;
   int blocksPerGridX = ((size.x) + threadsPerBlockDim -1) >> 4;
   int blocksPerGridY = ((size.y) + threadsPerBlockDim -1) >> 4;
-  int nBlocks = blocksPerGridX*blocksPerGridY;
   dim3 TwoDimBlock(16,16,1);
   dim3 TwoDimGrid(blocksPerGridX,blocksPerGridY,1);
 
@@ -717,8 +836,59 @@ void hysteresis(float *d_img, int3 size, const unsigned int t1, const unsigned i
   cudaMalloc((void**) &d_modified, (pow2*sizeof(int)));
   CUT_CHECK_ERROR("Memory hysteresis image creation failed");
 
-  kernel_hysteresis_glm3<<<TwoDimGrid,TwoDimBlock>>>(d_hys, size, d_modified, nBlocks, pow2);
+  int *d_modifsum;
+  cudaMalloc((void**) &d_modifsum, (nBlocks*sizeof(int)));
+  CUT_CHECK_ERROR("Memory hysteresis image creation failed");
+
+  CUDPPConfiguration config;
+  config.op = CUDPP_ADD;
+  config.datatype = CUDPP_INT;
+  config.algorithm = CUDPP_SCAN;
+  config.options = CUDPP_OPTION_BACKWARD | CUDPP_OPTION_INCLUSIVE;
+
+  CUDPPHandle scanplan = 0;
+  CUDPPResult result = cudppPlan(&scanplan, config, nBlocks, 1, 0);  
+
+  if (CUDPP_SUCCESS != result){
+    printf("Error creating CUDPPPlan\n");
+    exit(-1);
+  }
+
+  int a;
+  int cont[1];
+  for(a = 0; a<100; a++){
+
+    kernel_hysteresis_glm1D<<<DimGrid,DimBlock>>>(d_hys, size, d_modified);
+
+    cudppScan(scanplan, d_modifsum, d_modified, nBlocks);
+    cudaMemcpy(cont,d_modifsum,sizeof(int),cudaMemcpyDeviceToHost);
+
+    if (!cont[0]) break;
+
+  }
   CUT_CHECK_ERROR("Hysteresis Kernel failed");
+  //printf("Histeresis Interations: %d\n",a+1);
+
+  result = cudppDestroyPlan(scanplan);
+  if (CUDPP_SUCCESS != result){
+    printf("Error destroying CUDPPPlan\n");
+    exit(-1);
+  }
+
+/*********************** Teste ************************
+  int i;
+  int img[pow2];
+  cudaMemcpy(img,d_modified,pow2*sizeof(int),cudaMemcpyDeviceToHost);
+  for(i=0; i<pow2;i++){
+      printf("%d ",img[i]);
+  }
+  printf("\n");
+****************** Fim do Teste *********************/
+
+//printf("nBlocks: %d\n", nBlocks);
+//printf("pow2: %d\n", pow2);
+//printf("sum: %d\n", cont[0]);
+
 
   /// bind a texture to the CUDA array
   cudaBindTexture (NULL ,hysTexRef, d_hys);
