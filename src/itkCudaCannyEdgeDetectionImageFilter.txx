@@ -316,7 +316,6 @@ CannyEdgeDetectionImageFilter< TInputImage, TOutputImage >
   typename InputImageType::ConstPointer input = this->GetInput();
   typename OutputImageType::Pointer output = this->GetOutput();
 
-
   typename OutputImageType::RegionType outputRegion;
   outputRegion.SetSize(input->GetLargestPossibleRegion().GetSize());
   outputRegion.SetIndex(input->GetLargestPossibleRegion().GetIndex());
@@ -331,11 +330,8 @@ CannyEdgeDetectionImageFilter< TInputImage, TOutputImage >
   // Is there an ITK way to do this? Maybe CopyInformation() method?
   memcpy(output->GetBufferPointer(),input->GetBufferPointer(),size[0]*size[1]*sizeof(float));
 
-  // Temporary KernelWidth definition
-  const float maxKernelWidth = 5;
-
   // Call cudaCanny. Defined on canny.cu
-  cudaCanny(output->GetBufferPointer(), size[0], size[1], (float) m_Variance[0], maxKernelWidth, this->m_LowerThreshold, this->m_UpperThreshold);
+  cudaCanny(output->GetBufferPointer(), size[0], size[1], (float) m_Variance[0], m_MaximumKernelWidth, this->m_LowerThreshold, this->m_UpperThreshold);
 
 
 /************ Original Canny ***************

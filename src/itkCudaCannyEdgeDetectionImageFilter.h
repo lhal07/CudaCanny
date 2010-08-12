@@ -150,6 +150,18 @@ public:
   itkGetConstMacro(Variance, const ArrayType);
   itkSetMacro(MaximumError, ArrayType);
   itkGetConstMacro(MaximumError, const ArrayType);
+
+  /** Maximum kernel size allowed.  This value is used to truncate a kernel
+   *  that has grown too large.  A warning is given when the specified maximum 
+   *  error causes the kernel to exceed this size. */
+  unsigned int m_MaximumKernelWidth;
+ 
+  /** Sets a limit for growth of the kernel.  Small maximum error values with
+   *  large variances will yield very large kernel sizes.  This value can be
+   *  used to truncate a kernel in such instances.  A warning will be given on
+   *  truncation of the kernel. */
+  void SetMaximumKernelWidth( unsigned int n )
+        {    m_MaximumKernelWidth = n; }
   
   /** Set/Get the Variance parameter used by the Gaussian smoothing
       filter in this algorithm */
