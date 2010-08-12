@@ -312,15 +312,16 @@ void
 CannyEdgeDetectionImageFilter< TInputImage, TOutputImage >
 ::GenerateData()
 {
-
   // Get input and output image pointers
   typename InputImageType::ConstPointer input = this->GetInput();
   typename OutputImageType::Pointer output = this->GetOutput();
 
-  // Get info from input image and allocate the output
-  output->SetBufferedRegion(input->GetBufferedRegion());
-//  output->CopyInformation( input );
-  output->Allocate();  
+
+  typename OutputImageType::RegionType outputRegion;
+  outputRegion.SetSize(input->GetLargestPossibleRegion().GetSize());
+  outputRegion.SetIndex(input->GetLargestPossibleRegion().GetIndex());
+  output->SetRegions(outputRegion);
+  output->Allocate();
 
   // Get image size
   typename OutputImageType::SizeType size;
