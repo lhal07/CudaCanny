@@ -239,7 +239,7 @@ __global__ void kernel_1DConvolutionV_texture(float *output, int3 size, int kern
 }
 
 extern "C"
-void cudaGaussian(float *d_img, int3 size, const float gaussianVariance, unsigned int maxKernelWidth){
+float* cudaGaussian(float *d_img, int3 size, const float gaussianVariance, unsigned int maxKernelWidth){
 
   int threadsPerBlock = 256;
   int blocksPerGrid = ((size.z) + threadsPerBlock -1) >> 8;
@@ -302,6 +302,7 @@ void cudaGaussian(float *d_img, int3 size, const float gaussianVariance, unsigne
   cutStopTimer( timer );  /// Stop timer
   printf("Gaussian time = %f ms\n",cutGetTimerValue( timer ));
 
+  return(d_img);
 
 }
 
@@ -929,7 +930,7 @@ void cudaCanny(float *image, int width, int height, const float gaussianVariance
   size.z = width*height;
   int imageSize = size.z*sizeof(float);
 
-  ///Warmup
+  /// Warmup
   unsigned int WarmupTimer = 0;
   cutCreateTimer( &WarmupTimer );
   cutStartTimer( WarmupTimer );
@@ -950,10 +951,11 @@ void cudaCanny(float *image, int width, int height, const float gaussianVariance
   cudaMalloc((void**) &d_image, imageSize);
   CUT_CHECK_ERROR("Image memory creation failed");
 
-//  gpuInput(image,d_image,size.z);
   cudaMemcpy(d_image,image,size.z*sizeof(float),cudaMemcpyHostToDevice);
 
-  cudaGaussian(d_image,size,gaussianVariance,maxKernelWidth);
+  float *d_blur;
+
+  d_blur = cudaGaussian(d_image,size,gaussianVariance,maxKernelWidth);
 
   /// alocate memory on gpu for direction
   short2 *d_direction;
@@ -963,7 +965,7 @@ void cudaCanny(float *image, int width, int height, const float gaussianVariance
   cudaMalloc((void**) &d_magnitude, size.z*sizeof(float));
   CUT_CHECK_ERROR("Memory temporary image creation failed");
 
-  cudaSobel(d_magnitude,d_direction,d_image,size);
+  cudaSobel(d_magnitude,d_direction,d_blur,size);
 
   gradientMaximumDetector(d_image,d_magnitude,d_direction,size,maxKernelWidth);
 
@@ -974,7 +976,6 @@ void cudaCanny(float *image, int width, int height, const float gaussianVariance
 
   hysteresis(d_image,size,t1,t2);
 
-//  gpuOutput(d_image,image,size.z);
   cudaMemcpy(image,d_image,size.z*sizeof(float),cudaMemcpyDeviceToHost);
 
   /// free memory used for image magnitude
