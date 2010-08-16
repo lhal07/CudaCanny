@@ -174,68 +174,62 @@ __global__ void calculateGaussianKernel(float *gaussKernel, const float sigma, i
 
 }
 
-__global__ void kernel_1DConvolutionH_texture(float *output, int3 size, int kernelsize){
+__global__ void kernel_1DConvolutionH_texture(float *output, int3 size, short halfkernelsize){
 ///this version uses the texture memory to store the gaussian kernel and the
 ///image data
 
-  int2 sum;
+  float2 sum;
   int2 pos;
 
   extern __shared__ float s_gauss[];
 
   ///pixel index of this thread
   int pixIdx = blockIdx.x * blockDim.x + threadIdx.x;
-  int halfkernelsize = kernelsize >> 1;
 
   ///output pixel index
   pos.y = __fdividef(pixIdx,size.x);
   pos.x = pixIdx-(pos.y*size.x);
 
-  if(threadIdx.x<kernelsize) s_gauss[threadIdx.x] = tex1Dfetch(gaussTexRef,threadIdx.x);
+  if(threadIdx.x<((halfkernelsize<<1)+1)) s_gauss[threadIdx.x] = tex1Dfetch(gaussTexRef,threadIdx.x);
   
-      sum.x = sum.y = 0;
-    if ((pos.x >= (halfkernelsize)) && (pos.x <= (size.x-halfkernelsize-1))){
-#pragma unroll
-      for(int k=0;k<kernelsize;k++){
-        sum.x += (tex1Dfetch(texRef, pixIdx+(k-(halfkernelsize)))*s_gauss[k]);
-        sum.y += s_gauss[k];
-      }
-      sum.x = __fdividef(sum.x,sum.y);
-    }
+  sum.x = sum.y = 0;
 
-    output[pixIdx] = sum.x;
+#pragma unroll
+  for(int k=-halfkernelsize;k<(halfkernelsize+1);k++){
+    sum.x += (tex1Dfetch(texRef, pixIdx + k * (((pos.x+k)>=0)*((pos.x+k)<=(size.x-1)))) * s_gauss[k+halfkernelsize]);
+    sum.y += s_gauss[k+halfkernelsize];
+  }
+
+  output[pixIdx] = __fdividef(sum.x,sum.y);
 }
 
-__global__ void kernel_1DConvolutionV_texture(float *output, int3 size, int kernelsize){
+__global__ void kernel_1DConvolutionV_texture(float *output, int3 size, short halfkernelsize){
 ///this version uses the texture memory to store the gaussian kernel and the
 ///image data
 
-  int2 sum;
+  float2 sum;
   int2 pos;
 
   extern __shared__ float s_gauss[];
 
   ///pixel index of this thread
   int pixIdx = blockIdx.x * blockDim.x + threadIdx.x;
-  int halfkernelsize = kernelsize >> 1;
 
   ///output pixel index
   pos.y = __fdividef(pixIdx,size.x);
   pos.x = pixIdx-(pos.y*size.x);
 
-  if(threadIdx.x<kernelsize) s_gauss[threadIdx.x] = tex1Dfetch(gaussTexRef,threadIdx.x);
+  if(threadIdx.x<((halfkernelsize<<1)+1)) s_gauss[threadIdx.x] = tex1Dfetch(gaussTexRef,threadIdx.x);
   
-      sum.x = sum.y = 0;
-    if ((pos.y >= (halfkernelsize)) && (pos.y <= (size.y-halfkernelsize-1))){
-#pragma unroll
-      for(int k=0;k<kernelsize;k++){
-        sum.x += (tex1Dfetch(texRef, pixIdx+(size.x*(k-(halfkernelsize))))*s_gauss[k]);
-        sum.y += s_gauss[k];
-      }
-      sum.x = __fdividef(sum.x,sum.y);
-    }
+  sum.x = sum.y = 0;
 
-    output[pixIdx] = sum.x;
+#pragma unroll
+  for(int k=-halfkernelsize;k<(halfkernelsize+1);k++){
+    sum.x += (tex1Dfetch(texRef, pixIdx + (size.x*k) * (((pos.y+k)>=0)*((pos.y+k<=(size.y-1))))) * s_gauss[k+halfkernelsize]);
+    sum.y += s_gauss[k+halfkernelsize];
+  }
+
+  output[pixIdx] = __fdividef(sum.x,sum.y);
 }
 
 extern "C"
@@ -254,6 +248,7 @@ float* cudaGaussian(float *d_img, int3 size, const float gaussianVariance, unsig
 
   if (maxKernelWidth < 1) maxKernelWidth = 1;
   if (maxKernelWidth%2 == 0) maxKernelWidth--;
+  short halfkernelsize = maxKernelWidth >> 1;
 
 ///calculate gaussian mask
   float *cudaGaussKernel;
@@ -283,13 +278,13 @@ float* cudaGaussian(float *d_img, int3 size, const float gaussianVariance, unsig
   texRef.normalized = false;
   texRef.filterMode = cudaFilterModePoint;
 
-  kernel_1DConvolutionH_texture<<<DimGrid,DimBlock,kernelSize>>>(d_tmp,size,maxKernelWidth);
+  kernel_1DConvolutionH_texture<<<DimGrid,DimBlock,kernelSize>>>(d_tmp,size,halfkernelsize);
 
   ///bind temporary data texture
   cudaUnbindTexture(texRef);
   cudaBindTexture (NULL ,texRef, d_tmp);
 
-  kernel_1DConvolutionV_texture<<<DimGrid,DimBlock,kernelSize>>>(d_img,size,maxKernelWidth);
+  kernel_1DConvolutionV_texture<<<DimGrid,DimBlock,kernelSize>>>(d_img,size,halfkernelsize);
 
   ///free allocated memory
   cudaFree(d_tmp);
@@ -417,7 +412,7 @@ void cudaSobel(float* d_mag, short2 *d_dir, float *d_img, int3 size){
 
 }
 
-__global__ void nonMaximumSupression_texture(float* image, int3 size, int borderSize){
+__global__ void nonMaximumSupression_texture(float* image, int3 size){
 ///this is the kernel to calculate the non-maximum supression of the image. It is
 ///implemmented using texture fetching. The dependence of inter-block data makes
 ///the use of shared memory hard-boiled.
@@ -431,7 +426,7 @@ __global__ void nonMaximumSupression_texture(float* image, int3 size, int border
   pos.y = __fdividef(i,size.x);
   pos.x = i-(pos.y*size.x);
 
-  if ((pos.x>=borderSize) && (pos.x<=((size.x-1)-borderSize)) && (pos.y>=borderSize) && (pos.y<=((size.y-1)-borderSize))){
+  if ((pos.x>0) && (pos.x<((size.x-1))) && (pos.y>0) && (pos.y<((size.y-1)))){
 
     mag = tex1Dfetch(mag_texRef,i);
     dir = tex1Dfetch(dir_texRef,i);
@@ -442,7 +437,7 @@ __global__ void nonMaximumSupression_texture(float* image, int3 size, int border
 }
 
 extern "C"
-void gradientMaximumDetector(float *d_img, float *d_mag, short2 *d_dir, int3 size, int gaussKernelWidth){
+void gradientMaximumDetector(float *d_img, float *d_mag, short2 *d_dir, int3 size){
 
   int threadsPerBlock = 256;
   int blocksPerGrid = ((size.z) + threadsPerBlock -1) >> 8;
@@ -452,8 +447,6 @@ void gradientMaximumDetector(float *d_img, float *d_mag, short2 *d_dir, int3 siz
   unsigned int timer = 0;
   cutCreateTimer( &timer );
   cutStartTimer( timer );  ///< Start timer
-
-  int borderSize = (gaussKernelWidth>>1) + 1;
 
 ///Non-maximum supression or Local Maximum Search
 
@@ -473,7 +466,7 @@ void gradientMaximumDetector(float *d_img, float *d_mag, short2 *d_dir, int3 siz
   dir_texRef.normalized = false;
   dir_texRef.filterMode = cudaFilterModePoint;
   
-  nonMaximumSupression_texture<<<DimGrid,DimBlock>>>(d_img, size, borderSize);
+  nonMaximumSupression_texture<<<DimGrid,DimBlock>>>(d_img, size);
 
   ///free allocated memory
   cudaUnbindTexture(mag_texRef);
@@ -950,10 +943,9 @@ void cudaCanny(float *image, int width, int height, const float gaussianVariance
   float *d_image;
   cudaMalloc((void**) &d_image, imageSize);
   CUT_CHECK_ERROR("Image memory creation failed");
+  float *d_blur;
 
   cudaMemcpy(d_image,image,size.z*sizeof(float),cudaMemcpyHostToDevice);
-
-  float *d_blur;
 
   d_blur = cudaGaussian(d_image,size,gaussianVariance,maxKernelWidth);
 
@@ -967,7 +959,7 @@ void cudaCanny(float *image, int width, int height, const float gaussianVariance
 
   cudaSobel(d_magnitude,d_direction,d_blur,size);
 
-  gradientMaximumDetector(d_image,d_magnitude,d_direction,size,maxKernelWidth);
+  gradientMaximumDetector(d_image,d_magnitude,d_direction,size);
 
   cudaFree(d_direction);
   CUT_CHECK_ERROR("Image direction memory free failed");
