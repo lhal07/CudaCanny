@@ -14,7 +14,10 @@ INCLUDE_DIRECTORIES(
 set(CUDA_NVCC_FLAGS 
   ${CUDA_NVCC_FLAGS}
 #  --device-emulation
+#  -cubin
+  --ptxas-options=-v
   -use_fast_math
+
 )
 
 CUDA_ADD_EXECUTABLE(../bin/cudacanny
