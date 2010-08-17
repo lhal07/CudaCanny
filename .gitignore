@@ -5,6 +5,7 @@ src/bin/
 src/canny.cubin
 src/canny.linkinfo
 src/cmake_install.cmake
+src/*.swp
 Makefile
 CMakeFiles/
 cmake_install.cmake
