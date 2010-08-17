@@ -14,7 +14,7 @@
 
 
 extern "C"
-void cudaCanny(float *image, int width, int height, const float gaussianVariance, const unsigned int maxKernelWidth, const unsigned int t1, const unsigned int t2);
+float* cudaCanny(const float *image, int width, int height, const float gaussianVariance, const unsigned int maxKernelWidth, const unsigned int t1, const unsigned int t2);
 
 
 /// allocate texture variables
@@ -610,7 +610,7 @@ void hysteresis(float *d_img, int3 size, const unsigned int t1, const unsigned i
 }
 
 
-void cudaCanny(float *image, int width, int height, const float gaussianVariance, const unsigned int maxKernelWidth, const unsigned int t1, const unsigned int t2){
+float* cudaCanny(const float *input, int width, int height, const float gaussianVariance, const unsigned int maxKernelWidth, const unsigned int t1, const unsigned int t2){
 
   printf(" Parameters:\n");
   printf(" |-Image Size: (%d,%d)\n",width,height);
@@ -628,6 +628,9 @@ void cudaCanny(float *image, int width, int height, const float gaussianVariance
   float *d_image;
   float *d_blur;
   float *d_edges;
+
+  float* output;
+  output = (float*) malloc(size.z*sizeof(float));
 
   /// Warmup
   unsigned int WarmupTimer = 0;
@@ -649,7 +652,7 @@ void cudaCanny(float *image, int width, int height, const float gaussianVariance
   cudaMalloc((void**) &d_image, imageSize);
   CUT_CHECK_ERROR("Image memory creation failed");
 
-  cudaMemcpy(d_image,image,size.z*sizeof(float),cudaMemcpyHostToDevice);
+  cudaMemcpy(d_image,input,size.z*sizeof(float),cudaMemcpyHostToDevice);
 
   d_blur = cudaGaussian(d_image,size,gaussianVariance,maxKernelWidth);
 
@@ -667,7 +670,7 @@ void cudaCanny(float *image, int width, int height, const float gaussianVariance
 
   hysteresis(d_edges,size,t1,t2);
 
-  cudaMemcpy(image,d_edges,size.z*sizeof(float),cudaMemcpyDeviceToHost);
+  cudaMemcpy(output,d_edges,size.z*sizeof(float),cudaMemcpyDeviceToHost);
 
   cudaThreadSynchronize();
   cutStopTimer( timer );  ///< Stop timer
@@ -681,4 +684,5 @@ void cudaCanny(float *image, int width, int height, const float gaussianVariance
   cudaFree(d_image);
   CUT_CHECK_ERROR("Image memory free failed");
 
+  return(output);
 }

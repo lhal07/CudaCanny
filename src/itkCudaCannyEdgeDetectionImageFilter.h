@@ -30,7 +30,7 @@
 #include "itkObjectStore.h"
 
 extern "C"
-void cudaCanny(float *image, int width, int height, const float gaussianVariance, const unsigned int maxKernelWidth, const unsigned int t1, const unsigned int t2);
+float* cudaCanny(const float *image, int width, int height, const float gaussianVariance, const unsigned int maxKernelWidth, const unsigned int t1, const unsigned int t2);
 
 namespace itk
 {
@@ -223,19 +223,6 @@ public:
     {
     return this->m_MultiplyImageFilter->GetOutput();
     }
-
-  void UpdateInCUDA(float *image, const unsigned int maxKernelWidth)
-  {
-
-    this->GetOutput()->SetBufferedRegion( this->GetOutput()->GetRequestedRegion() );
-    this->GetOutput()->Allocate();
-    typename  InputImageType::ConstPointer  input  = this->GetInput();
-
-    typename InputImageType::SizeType size;
-    size = input->GetLargestPossibleRegion().GetSize();
-
-  cudaCanny(image, size[0], size[1], (float) m_Variance[0], maxKernelWidth, this->m_LowerThreshold, this->m_UpperThreshold);
-  }
 
   /** CannyEdgeDetectionImageFilter needs a larger input requested
    * region than the output requested region ( derivative operators, etc).  

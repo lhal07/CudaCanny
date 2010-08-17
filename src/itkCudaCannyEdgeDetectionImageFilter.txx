@@ -315,6 +315,7 @@ CannyEdgeDetectionImageFilter< TInputImage, TOutputImage >
   // Get input and output image pointers
   typename InputImageType::ConstPointer input = this->GetInput();
   typename OutputImageType::Pointer output = this->GetOutput();
+  typename OutputImageType::PixelType * ptr;
 
   typename OutputImageType::RegionType outputRegion;
   outputRegion.SetSize(input->GetLargestPossibleRegion().GetSize());
@@ -326,12 +327,13 @@ CannyEdgeDetectionImageFilter< TInputImage, TOutputImage >
   typename OutputImageType::SizeType size;
   size = output->GetLargestPossibleRegion().GetSize();
 
+  // Call cudaCanny. Defined on canny.cu
+  ptr = cudaCanny(input->GetBufferPointer(), size[0], size[1], (float) m_Variance[0], m_MaximumKernelWidth, this->m_LowerThreshold, this->m_UpperThreshold);
+
   // Copy iinput image date to output image
   // Is there an ITK way to do this? Maybe CopyInformation() method?
-  memcpy(output->GetBufferPointer(),input->GetBufferPointer(),size[0]*size[1]*sizeof(float));
+  memcpy(output->GetBufferPointer(),ptr,size[0]*size[1]*sizeof(float));
 
-  // Call cudaCanny. Defined on canny.cu
-  cudaCanny(output->GetBufferPointer(), size[0], size[1], (float) m_Variance[0], m_MaximumKernelWidth, this->m_LowerThreshold, this->m_UpperThreshold);
 
 
 /************ Original Canny ***************
