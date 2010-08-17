@@ -330,9 +330,8 @@ CannyEdgeDetectionImageFilter< TInputImage, TOutputImage >
   // Call cudaCanny. Defined on canny.cu
   ptr = cudaCanny(input->GetBufferPointer(), size[0], size[1], (float) m_Variance[0], m_MaximumKernelWidth, this->m_LowerThreshold, this->m_UpperThreshold);
 
-  // Copy iinput image date to output image
-  // Is there an ITK way to do this? Maybe CopyInformation() method?
-  memcpy(output->GetBufferPointer(),ptr,size[0]*size[1]*sizeof(float));
+  // Set image pointer to the output image
+  output->GetPixelContainer()->SetImportPointer(ptr, size[0]*size[1], true);
 
 
 
