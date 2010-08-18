@@ -12,9 +12,7 @@
 #include <cutil.h>
 #include <cudpp.h>
 
-
-extern "C"
-float* cudaCanny(const float *image, int width, int height, const float gaussianVariance, const unsigned int maxKernelWidth, const unsigned int t1, const unsigned int t2);
+#include "canny.h"
 
 
 /// allocate texture variables
