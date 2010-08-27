@@ -333,64 +333,6 @@ CannyEdgeDetectionImageFilter< TInputImage, TOutputImage >
   // Set image pointer to the output image
   output->GetPixelContainer()->SetImportPointer(ptr, size[0]*size[1], true);
 
-
-
-/************ Original Canny ***************
-  // Allocate the output
-  this->GetOutput()->SetBufferedRegion( this->GetOutput()->GetRequestedRegion() );
-  this->GetOutput()->Allocate();
- 
-  typename  InputImageType::ConstPointer  input  = this->GetInput();
-  
-  typename ZeroCrossingImageFilter<TOutputImage, TOutputImage>::Pointer 
-    zeroCrossFilter = ZeroCrossingImageFilter<TOutputImage, TOutputImage>::New();
-
-  typename GradientMagnitudeImageFilter<TOutputImage, TOutputImage>::Pointer
-    gradMag = GradientMagnitudeImageFilter<TOutputImage, TOutputImage>::New();
-
-  typename MultiplyImageFilter<TOutputImage, TOutputImage,TOutputImage>::Pointer multFilter 
-    = MultiplyImageFilter<TOutputImage, TOutputImage,TOutputImage>::New();
-
-  this->AllocateUpdateBuffer();
-
-  // 1.Apply the Gaussian Filter to the input image.-------
-  m_GaussianFilter->SetVariance(m_Variance);
-  m_GaussianFilter->SetMaximumError(m_MaximumError);
-  m_GaussianFilter->SetInput(input);
-  // modify to force excution, due to grafting complications
-  m_GaussianFilter->Modified(); 
-  m_GaussianFilter->Update();
-
-  //2. Calculate 2nd order directional derivative-------
-  // Calculate the 2nd order directional derivative of the smoothed image.
-  // The output of this filter will be used to store the directional
-  // derivative.
-  this->Compute2ndDerivative();
-
-  this->Compute2ndDerivativePos();
-
-
-  // 3. Non-maximum suppression----------
-  
-  // Calculate the zero crossings of the 2nd directional derivative and write 
-  // the result to output buffer. 
-  zeroCrossFilter->SetInput(this->GetOutput());
-  zeroCrossFilter->Update();
-  
-  // 4. Hysteresis Thresholding---------
-
-  // First get all the edges corresponding to zerocrossings
-  m_MultiplyImageFilter->SetInput1(m_UpdateBuffer1);
-  m_MultiplyImageFilter->SetInput2(zeroCrossFilter->GetOutput());
- 
-  // To save memory, we will graft the output of the m_GaussianFilter, 
-  // which is no longer needed, into the m_MultiplyImageFilter.
-  m_MultiplyImageFilter->GraftOutput( m_GaussianFilter->GetOutput() );
-  m_MultiplyImageFilter->Update();
-
-  //Then do the double threshoulding upon the edge reponses
-  this->HysteresisThresholding();
-*/
 }
 
 template< class TInputImage, class TOutputImage >
