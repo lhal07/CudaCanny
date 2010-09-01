@@ -40,7 +40,7 @@ typedef itk::Image<PixelType,2>                                     ImageType;
 typedef itk::Image<ucharPixelType,2>                           ucharImageType;
 typedef itk::ImageFileReader< ImageType >                          ReaderType;
 typedef itk::ImageFileWriter< ucharImageType >                     WriterType;
-typedef itk::CannyEdgeDetectionImageFilter< ImageType, ImageType > CannyFilter;
+typedef itk::CudaCannyEdgeDetectionImageFilter< ImageType, ImageType > CannyFilter;
 typedef itk::RescaleIntensityImageFilter< ImageType, ucharImageType > RescaleFilter;
 
 
