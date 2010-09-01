@@ -2,8 +2,8 @@ bin/*
 src/CMakeFiles/
 src/Makefile
 src/bin/
-src/canny.cubin
-src/canny.linkinfo
+src/*.cubin
+src/*.linkinfo
 src/cmake_install.cmake
 src/*.swp
 Makefile
