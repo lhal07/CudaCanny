@@ -22,8 +22,8 @@ set(CUDA_NVCC_FLAGS
 
 CUDA_ADD_EXECUTABLE(../bin/cudacanny
   itkCudaCannyEdgeDetectionImageFilter.txx
+  CudaCannyEdgeDetection.cu
   cudacanny.cxx
-  canny.cu
 )
 
 TARGET_LINK_LIBRARIES(../bin/cudacanny 
