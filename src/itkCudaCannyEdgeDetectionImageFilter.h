@@ -19,7 +19,7 @@
 
 #include "itkImageToImageFilter.h"
 #include "itkImage.h"
-#include "canny.h"
+#include "CudaCannyEdgeDetection.h"
 
 namespace itk
 {

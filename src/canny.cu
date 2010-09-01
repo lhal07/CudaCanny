@@ -12,7 +12,7 @@
 #include <cutil.h>
 #include <cudpp.h>
 
-#include "canny.h"
+#include "CudaCannyEdgeDetection.h"
 
 
 /// allocate texture variables
