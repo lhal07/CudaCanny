@@ -72,10 +72,10 @@ CudaCannyEdgeDetectionImageFilter< TInputImage, TOutputImage >
   size = output->GetLargestPossibleRegion().GetSize();
 
   // Call cudaCanny. Defined on canny.cu
-  ptr = cudaCanny(input->GetBufferPointer(), size[0], size[1], (float) m_Variance, m_MaximumKernelWidth, m_LowerThreshold, m_UpperThreshold);
+  ptr = cudaCanny(input->GetDevicePointer(), size[0], size[1], (float) m_Variance, m_MaximumKernelWidth, m_LowerThreshold, m_UpperThreshold);
 
   // Set image pointer to the output image
-  output->GetPixelContainer()->SetImportPointer(ptr, size[0]*size[1], true);
+  output->GetPixelContainer()->SetDevicePointer(ptr, size[0]*size[1], true);
 
 }
 

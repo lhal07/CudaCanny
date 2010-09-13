@@ -100,7 +100,7 @@ __global__ void kernel_1DConvolutionV_texture(float *output, int3 size, short ha
 }
 
 extern "C"
-float* cudaGaussian(float *d_img, int3 size, const float gaussianVariance, unsigned int maxKernelWidth){
+void cudaGaussian(float *d_output, const float *d_img, int3 size, const float gaussianVariance, unsigned int maxKernelWidth){
 
   int threadsPerBlock = 256;
   int blocksPerGrid = ((size.z) + threadsPerBlock -1) >> 8;
@@ -150,7 +150,7 @@ float* cudaGaussian(float *d_img, int3 size, const float gaussianVariance, unsig
   cudaUnbindTexture(texRef);
   cudaBindTexture (NULL ,texRef, d_tmp);
 
-  kernel_1DConvolutionV_texture<<<DimGrid,DimBlock,kernelSize>>>(d_img,size,halfkernelsize);
+  kernel_1DConvolutionV_texture<<<DimGrid,DimBlock,kernelSize>>>(d_output,size,halfkernelsize);
 
   /// Free allocated memory
   cudaFree(d_tmp);
@@ -162,8 +162,6 @@ float* cudaGaussian(float *d_img, int3 size, const float gaussianVariance, unsig
   cudaThreadSynchronize();
   cutStopTimer( timer );  /// Stop timer
   printf("Gaussian time = %f ms\n",cutGetTimerValue( timer ));
-
-  return(d_img);
 
 }
 
@@ -304,7 +302,7 @@ __global__ void nonMaximumSupression_texture(float* image, int3 size){
 }
 
 extern "C"
-float* gradientMaximumDetector(float *d_img, float *d_mag, short2 *d_dir, int3 size){
+void gradientMaximumDetector(float *d_img, float *d_mag, short2 *d_dir, int3 size){
 
   int threadsPerBlock = 256;
   int blocksPerGrid = ((size.z) + threadsPerBlock -1) >> 8;
@@ -343,8 +341,6 @@ float* gradientMaximumDetector(float *d_img, float *d_mag, short2 *d_dir, int3 s
   cudaThreadSynchronize();
   cutStopTimer( timer );  ///< Stop timer
   printf("Maximum Detector time = %f ms\n",cutGetTimerValue( timer ));
-
-  return(d_img);
 
 }
 
@@ -608,7 +604,7 @@ void hysteresis(float *d_img, int3 size, const unsigned int t1, const unsigned i
 }
 
 
-float* cudaCanny(const float *input, int width, int height, const float gaussianVariance, const unsigned int maxKernelWidth, const unsigned int t1, const unsigned int t2){
+float* cudaCanny(const float *d_input, int width, int height, const float gaussianVariance, const unsigned int maxKernelWidth, const unsigned int t1, const unsigned int t2){
 
   printf(" Parameters:\n");
   printf(" |-Image Size: (%d,%d)\n",width,height);
@@ -620,15 +616,10 @@ float* cudaCanny(const float *input, int width, int height, const float gaussian
   size.x = width;
   size.y = height;
   size.z = width*height;
-  int imageSize = size.z*sizeof(float);
 
   /// Image Pointers
-  float *d_image;
   float *d_blur;
   float *d_edges;
-
-  float* output;
-  output = (float*) malloc(size.z*sizeof(float));
 
   /// Warmup
   unsigned int WarmupTimer = 0;
@@ -646,13 +637,10 @@ float* cudaCanny(const float *input, int width, int height, const float gaussian
   cutCreateTimer( &timer );
   cutStartTimer( timer );  ///< Start timer
 
-  /// alocate memory on gpu for image
-  cudaMalloc((void**) &d_image, imageSize);
-  CUT_CHECK_ERROR("Image memory creation failed");
+  cudaMalloc((void**) &d_blur, (size.z*sizeof(float)));
+  CUT_CHECK_ERROR("Memory hysteresis image creation failed");
 
-  cudaMemcpy(d_image,input,size.z*sizeof(float),cudaMemcpyHostToDevice);
-
-  d_blur = cudaGaussian(d_image,size,gaussianVariance,maxKernelWidth);
+  cudaGaussian(d_blur,d_input,size,gaussianVariance,maxKernelWidth);
 
   /// alocate memory on gpu for direction
   short2 *d_direction;
@@ -664,11 +652,11 @@ float* cudaCanny(const float *input, int width, int height, const float gaussian
 
   cudaSobel(d_magnitude,d_direction,d_blur,size);
 
-  d_edges = gradientMaximumDetector(d_image,d_magnitude,d_direction,size);
+  d_edges = d_blur;
+
+  gradientMaximumDetector(d_edges,d_magnitude,d_direction,size);
 
   hysteresis(d_edges,size,t1,t2);
-
-  cudaMemcpy(output,d_edges,size.z*sizeof(float),cudaMemcpyDeviceToHost);
 
   cudaThreadSynchronize();
   cutStopTimer( timer );  ///< Stop timer
@@ -679,8 +667,6 @@ float* cudaCanny(const float *input, int width, int height, const float gaussian
   CUT_CHECK_ERROR("Image direction memory free failed");
   cudaFree(d_magnitude);
   CUT_CHECK_ERROR("Image memory free failed");
-  cudaFree(d_image);
-  CUT_CHECK_ERROR("Image memory free failed");
 
-  return(output);
+  return(d_edges);
 }
