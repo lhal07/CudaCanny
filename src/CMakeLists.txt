@@ -9,6 +9,11 @@ CUDA_INCLUDE_DIRECTORIES(
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}
+  /home/ppginf/luis/cuda/common/inc
+  /home/ppginf/luis/cuda/common/inc/cudpp
+  /home/ppginf/luis/cuda/include
+  /home/ppginf/luis/cuda/lib
+  /home/ppginf/luis/cuda/common/lib
 ) 
 
 set(CUDA_NVCC_FLAGS 
@@ -17,7 +22,6 @@ set(CUDA_NVCC_FLAGS
 #  -cubin
   --ptxas-options=-v
   -use_fast_math
-
 )
 
 CUDA_ADD_EXECUTABLE(../bin/cudacanny
