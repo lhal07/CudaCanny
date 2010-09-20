@@ -61,10 +61,7 @@ CudaCannyEdgeDetectionImageFilter< TInputImage, TOutputImage >
   typename OutputImageType::PixelType * ptr;
 
   // Allocate output image object
-  typename OutputImageType::RegionType outputRegion;
-  outputRegion.SetSize(input->GetLargestPossibleRegion().GetSize());
-  outputRegion.SetIndex(input->GetLargestPossibleRegion().GetIndex());
-  output->SetRegions(outputRegion);
+  output->SetBufferedRegion(output->GetRequestedRegion());
   output->Allocate();
 
   // Get image size
