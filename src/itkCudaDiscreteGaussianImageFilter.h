@@ -20,6 +20,7 @@
 #include "itkImageToImageFilter.h"
 #include "itkImage.h"
 
+#include "cuda.h"
 #include "CudaDiscreteGaussian.h"
 
 namespace itk
