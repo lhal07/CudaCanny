@@ -7,5 +7,7 @@
 
 
 extern "C"
-float* cudaCanny(const float *image, int width, int height, const float gaussianVariance, const unsigned int maxKernelWidth, const unsigned int t1, const unsigned int t2);
+float* gradientMaximumDetector(float *d_mag, short2 *d_dir, int width, int height);
 
+extern "C"
+void hysteresis(float *d_img, int width, int height, const unsigned int t1, const unsigned int t2);
