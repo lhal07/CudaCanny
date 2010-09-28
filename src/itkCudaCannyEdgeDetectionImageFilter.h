@@ -1,10 +1,10 @@
 /*=========================================================================
 
   Program:   Insight Segmentation & Registration Toolkit
-  Module:    $RCSfile: itkCannyEdgeDetectionImageFilter.h,v $
+  Module:    $RCSfile: itkCudaCannyEdgeDetectionImageFilter.h,v $
   Language:  C++
-  Date:      $Date: 2009-04-25 12:27:15 $
-  Version:   $Revision: 1.28 $
+  Date:      $Date: 2010-09-15 12:27:15 $
+  Version:   $Revision: 3.0.0 $
 
   Copyright (c) Insight Software Consortium. All rights reserved.
   See ITKCopyright.txt or http://www.itk.org/HTML/Copyright.htm for details.
@@ -19,6 +19,10 @@
 
 #include "itkImageToImageFilter.h"
 #include "itkImage.h"
+#include "itkCudaDiscreteGaussianImageFilter.h"
+#include "itkCudaSobelEdgeDetectionImageFilter.h"
+
+#include "cuda.h"
 #include "CudaCannyEdgeDetection.h"
 
 namespace itk
@@ -58,13 +62,7 @@ namespace itk
  * the same as the data type of the output image. Any values below the
  * Threshold level will be replaced with the OutsideValue parameter value, whose
  * default is zero.
- * 
- * \todo Edge-linking will be added when an itk connected component labeling
- * algorithm is available.
- *
- * \sa DiscreteGaussianImageFilter
- * \sa ZeroCrossingImageFilter
- * \sa ThresholdImageFilter */
+ */
 template<class TInputImage, class TOutputImage>
 class ITK_EXPORT CudaCannyEdgeDetectionImageFilter
   : public ImageToImageFilter<TInputImage, TOutputImage>
@@ -182,8 +180,19 @@ protected:
 
   void GenerateData();
 
+  typedef CudaDiscreteGaussianImageFilter<InputImageType, OutputImageType>
+                                                      CudaGaussianImageFilterType;
+
+  typedef CudaSobelEdgeDetectionImageFilter<OutputImageType, OutputImageType>
+                                                      CudaSobelImageFilterType;
 private:
   virtual ~CudaCannyEdgeDetectionImageFilter(){};
+
+  /** Implementation of Non Maximum Supression on Cuda */
+  void CudaNonMaximumSupression();
+
+  /** Implementation of Hysteresis Thresholding on Cuda */
+  void CudaHysteresisThresholding();
 
   /** The variance of the Gaussian Filter used in this filter */
   double m_Variance;
@@ -200,6 +209,11 @@ private:
   /** "Background" value for use in thresholding. */
   OutputImagePixelType m_OutsideValue;
 
+  /** CudaGaussian filter to smooth the input image  */
+  typename CudaGaussianImageFilterType::Pointer m_CudaGaussianFilter;
+ 
+  /** CudaSobel filter to detect edges on the smoothed image  */
+  typename CudaSobelImageFilterType::Pointer m_CudaSobelFilter;
 };
 
 } //end of namespace itk

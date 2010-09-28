@@ -1,10 +1,10 @@
 /*=========================================================================
 
   Program:   Insight Segmentation & Registration Toolkit
-  Module:    $RCSfile: itkCannyEdgeDetectionImageFilter.txx,v $
+  Module:    $RCSfile: itkCudaCannyEdgeDetectionImageFilter.txx,v $
   Language:  C++
-  Date:      $Date: 2009-08-17 12:01:33 $
-  Version:   $Revision: 1.56 $
+  Date:      $Date: 2010-09-15 12:01:33 $
+  Version:   $Revision: 3.0.0 $
 
   Copyright (c) Insight Software Consortium. All rights reserved.
   See ITKCopyright.txt or http://www.itk.org/HTML/Copyright.htm for details.
@@ -17,12 +17,6 @@
 #ifndef __itkCudaCannyEdgeDetectionImageFilter_txx
 #define __itkCudaCannyEdgeDetectionImageFilter_txx
 #include "itkCudaCannyEdgeDetectionImageFilter.h"
-
-#include "itkZeroCrossingImageFilter.h"
-#include "itkNeighborhoodInnerProduct.h"
-#include "itkNumericTraits.h"
-#include "itkProgressReporter.h"
-#include "itkGradientMagnitudeImageFilter.h"
 
 namespace itk
 {
@@ -38,6 +32,9 @@ CudaCannyEdgeDetectionImageFilter()
   m_UpperThreshold = NumericTraits<OutputImagePixelType>::Zero;
   m_LowerThreshold = NumericTraits<OutputImagePixelType>::Zero;
 
+  m_CudaGaussianFilter = CudaGaussianImageFilterType::New();
+  m_CudaSobelFilter = CudaSobelImageFilterType::New();
+
 }
  
 template <class TInputImage, class TOutputImage>
@@ -50,29 +47,72 @@ CudaCannyEdgeDetectionImageFilter<TInputImage,TOutputImage>
   return;  
 }
 
+template <class TInputImage, class TOutputImage>
+void 
+CudaCannyEdgeDetectionImageFilter<TInputImage,TOutputImage>
+::CudaNonMaximumSupression()
+{
+
+  // Set input, output and temporary pointers
+  typename OutputImageType::Pointer input  = m_CudaSobelFilter->GetGradientStrenght();
+  typename OutputImageType::Pointer output = this->GetOutput();
+  typename TOutputImage::PixelType * tmpNMS;
+
+  // Get image size
+  typename OutputImageType::SizeType size = output->GetLargestPossibleRegion().GetSize();
+
+  // Call CudaNMS. Defined on CudaCannyEdgeDetection.cu
+  tmpNMS = gradientMaximumDetector(input->GetDevicePointer(), m_CudaSobelFilter->GetGradientDirection()->GetDevicePointer(), size[0], size[1]);
+
+  // Set NMS pointer on the output image
+  output->GetPixelContainer()->SetDevicePointer(tmpNMS, size[0]*size[1], true);
+}
+
+template <class TInputImage, class TOutputImage>
+void 
+CudaCannyEdgeDetectionImageFilter<TInputImage,TOutputImage>
+::CudaHysteresisThresholding()
+{
+
+  // Get the image ponter
+  typename OutputImageType::Pointer output = this->GetOutput();
+
+  // Get image size
+  typename OutputImageType::SizeType size = output->GetLargestPossibleRegion().GetSize();
+
+  // Call CudaHysteresis. Defined on CudaCannyEdgeDetection.cu
+  hysteresis(output->GetDevicePointer(), size[0], size[1], m_LowerThreshold, m_UpperThreshold);
+
+}
+
 template< class TInputImage, class TOutputImage >
 void
 CudaCannyEdgeDetectionImageFilter< TInputImage, TOutputImage >
 ::GenerateData()
 {
+
   // Get input and output image pointers
   typename InputImageType::ConstPointer input = this->GetInput();
   typename OutputImageType::Pointer output = this->GetOutput();
-  typename OutputImageType::PixelType * ptr;
-
+ 
   // Allocate output image object
   output->SetBufferedRegion(output->GetRequestedRegion());
   output->Allocate();
+  
+  // 1.Apply the Gaussian Filter to the input image.-------
+  m_CudaGaussianFilter->SetVariance(m_Variance);
+  m_CudaGaussianFilter->SetInput(input);
+  m_CudaGaussianFilter->Update();
 
-  // Get image size
-  typename OutputImageType::SizeType size;
-  size = output->GetLargestPossibleRegion().GetSize();
+  // 2.Apply the Sobel Filter to detect edges on the image.-------
+  m_CudaSobelFilter->SetInput(m_CudaGaussianFilter->GetOutput());
+  m_CudaSobelFilter->Update();
 
-  // Call cudaCanny. Defined on canny.cu
-  ptr = cudaCanny(input->GetDevicePointer(), size[0], size[1], (float) m_Variance, m_MaximumKernelWidth, m_LowerThreshold, m_UpperThreshold);
+  // 3. Apply NonMaximumSupression operation on the gradient edges. -------
+  this->CudaNonMaximumSupression();
 
-  // Set image pointer to the output image
-  output->GetPixelContainer()->SetDevicePointer(ptr, size[0]*size[1], true);
+  // 4. Apply Hysteresis Thresholding on the Maximum Values of gradient. -------
+  this->CudaHysteresisThresholding();
 
 }
 
