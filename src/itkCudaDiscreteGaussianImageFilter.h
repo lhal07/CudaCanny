@@ -139,8 +139,8 @@ public:
 protected:
   CudaDiscreteGaussianImageFilter()
     {
-    m_Variance =0.0;
-    m_MaximumKernelWidth = 32;
+    m_Variance =1.0;
+    m_MaximumKernelWidth = 3;
     m_FilterDimensionality = ImageDimension;
     }
   virtual ~CudaDiscreteGaussianImageFilter() {}
