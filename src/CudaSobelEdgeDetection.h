@@ -13,7 +13,7 @@ public:
   TDirection *Direction;
 };
 
-typedef Gradient<float,short2>  Tgrad;
+typedef Gradient<float,float>  Tgrad;
 
 extern "C"
 Tgrad* cudaSobel(Tgrad* d_gradient, const float *d_img, int width, int height);

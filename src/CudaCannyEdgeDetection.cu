@@ -18,7 +18,7 @@
 /// allocate texture variables
 texture<float, 1, cudaReadModeElementType> texRef;
 texture<float, 1, cudaReadModeElementType> mag_texRef;
-texture<short2, 1, cudaReadModeElementType> dir_texRef;
+texture<float, 1, cudaReadModeElementType> dir_texRef;
 texture<float, 1, cudaReadModeElementType> hysTexRef;
 
 
@@ -27,27 +27,56 @@ __global__ void nonMaximumSupression_texture(float* image, int3 size){
 ///implemmented using texture fetching. The dependence of inter-block data makes
 ///the use of shared memory hard-boiled.
 
-  int i = blockDim.x * blockIdx.x + threadIdx.x;
+  int pixIdx = blockDim.x * blockIdx.x + threadIdx.x;
   float mag = 0;
   short2 dir;
 
   ///output pixel index
   int2 pos;
-  pos.y = __fdividef(i,size.x);
-  pos.x = i-(pos.y*size.x);
+  pos.y = __fdividef(pixIdx,size.x);
+  pos.x = pixIdx-(pos.y*size.x);
 
   if ((pos.x>0) && (pos.x<((size.x-1))) && (pos.y>0) && (pos.y<((size.y-1)))){
 
-    mag = tex1Dfetch(mag_texRef,i);
-    dir = tex1Dfetch(dir_texRef,i);
-    mag *= ((mag>=tex1Dfetch(mag_texRef,(i+(size.x*dir.y)+dir.x)))*(mag>tex1Dfetch(mag_texRef,(i-(size.x*dir.y)-dir.x))));
+    /// Transform radian to degrees (multiply for 180/pi) to facilitate the
+    /// aproximation on an integer variable.
+    /// And sums 90 degrees to rotate the trigonometrical circle and eliminate the
+    /// negative values.
+    float theta = (tex1Dfetch(dir_texRef,pixIdx) * __fdividef(180,M_PI)) + 90;
+
+    /// Put the values between 158 and 180 degrees on the [0,22] interval.
+    /// This way, all horizontal pixels will be in the interval of [0,22].
+    if (theta > 157) theta -= 158;
+
+    /// This calculation does this:
+    //  direction
+    //  interval  -> theta
+    //  [0,22]    ->   0
+    //  [23,67]   ->   1
+    //  [68,112]  ->   2
+    //  [113,157] ->   3
+    theta = ceilf(__fdividef(theta-22,45));
+
+    /// The pixel will compare it's value with it's perpendicular(90 degrees) 
+    /// neighbor's here it's used short2 because it is 32bit lenght (this is 
+    /// good to the store coalescence).
+    /// theta -> ( x, y)
+    ///   0   -> ( 0,-1)
+    ///   1   -> (-1,-1)
+    ///   2   -> ( 1, 0)
+    ///   3   -> ( 1,-1)
+    dir = make_short2(1-(theta == 0)-((theta == 1)<<1),(theta == 2)-1);
+
+
+    mag = tex1Dfetch(mag_texRef,pixIdx);
+    mag *= ((mag>=tex1Dfetch(mag_texRef,(pixIdx+(size.x*dir.y)+dir.x)))*(mag>tex1Dfetch(mag_texRef,(pixIdx-(size.x*dir.y)-dir.x))));
   }
-  image[i] = mag;
+  image[pixIdx] = mag;
 
 }
 
 extern "C"
-float* gradientMaximumDetector(float *d_mag, short2 *d_dir, int width, int height){
+float* gradientMaximumDetector(float *d_mag, float *d_dir, int width, int height){
 
   int3 size;
   size.x = width;

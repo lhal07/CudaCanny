@@ -77,9 +77,7 @@ CudaSobelEdgeDetectionImageFilter< TInputImage, TOutputImage >
   
   // Allocate output image object
   strenght->SetBufferedRegion(strenght->GetRequestedRegion());
-  strenght->Allocate();
   direction->SetBufferedRegion(direction->GetRequestedRegion());
-  direction->Allocate();
 
   // Get image size
   typename OutputImageType::SizeType size = strenght->GetLargestPossibleRegion().GetSize();

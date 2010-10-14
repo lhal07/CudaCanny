@@ -7,7 +7,7 @@
 
 
 extern "C"
-float* gradientMaximumDetector(float *d_mag, short2 *d_dir, int width, int height);
+float* gradientMaximumDetector(float *d_mag, float *d_dir, int width, int height);
 
 extern "C"
 void hysteresis(float *d_img, int width, int height, const unsigned int t1, const unsigned int t2);

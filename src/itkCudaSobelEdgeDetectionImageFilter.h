@@ -59,7 +59,7 @@ public:
   typedef typename TOutputImage::InternalPixelType OutputInternalPixelType;
   typedef typename TInputImage::PixelType          InputPixelType;
   typedef typename TInputImage::InternalPixelType  InputInternalPixelType;
-  typedef short2                                   DirectionPixelType;
+  typedef float                                    DirectionPixelType;
   typedef itk::Image<DirectionPixelType,2>         DirectionType;
   itkStaticConstMacro(ImageDimension, unsigned int,
                       TOutputImage::ImageDimension );
