@@ -20,22 +20,30 @@ texture<float, 1, cudaReadModeElementType> gaussTexRef;
 
 
 
-__global__ void calculateGaussianKernel(float *gaussKernel, const float sigma, int kernelWidth){
+__global__ void calculateGaussianKernel(float *gaussKernel, const float sigma, int halfKernelWidth){
 
-  ///pixel index of this thread
-  int pixIdx = blockIdx.x * blockDim.x + threadIdx.x;
-  int i = pixIdx - (kernelWidth>>1);
-  float smaller;
+  /// pixel index of this thread
+  /// this makes the normal curve
+  int i = threadIdx.x - halfKernelWidth;
   extern __shared__ float s_gaussKernel[];
+  __shared__ float sum;
   
-  ///this kernel must allocate 'kernelWidth' threads
+  /// this kernel must allocate 'kernelWidth' threads
   s_gaussKernel[threadIdx.x] = (__fdividef(1,(sqrtf(2*M_PI*sigma))))*expf((-1)*(__fdividef((i*i),(2*sigma*sigma))));
 
   __syncthreads();
 
-  smaller = s_gaussKernel[0];
+  /// Thread 0 sum all the gassian kernel array
+  // This is not so bad because the array is always short
+  if (!threadIdx.x) {
+    int th;
+    sum = 0;
+    for(th = 0; th<blockDim.x; th++) sum += s_gaussKernel[th];
+  }
 
-  gaussKernel[pixIdx] = s_gaussKernel[threadIdx.x]/smaller;
+  __syncthreads();
+
+  gaussKernel[threadIdx.x] = s_gaussKernel[threadIdx.x]/sum;
 
 }
 
@@ -43,7 +51,7 @@ __global__ void kernel_1DConvolutionH_texture(float *output, int3 size, short ha
 ///this version uses the texture memory to store the gaussian kernel and the
 ///image data
 
-  float2 sum;
+  float sum = 0;
   int2 pos;
 
   extern __shared__ float s_gauss[];
@@ -57,21 +65,20 @@ __global__ void kernel_1DConvolutionH_texture(float *output, int3 size, short ha
 
   if(threadIdx.x<((halfkernelsize<<1)+1)) s_gauss[threadIdx.x] = tex1Dfetch(gaussTexRef,threadIdx.x);
   
-  sum.x = sum.y = 0;
+  __syncthreads();
 
   for(int k=-halfkernelsize;k<(halfkernelsize+1);k++){
-    sum.x += (tex1Dfetch(texRef, pixIdx + k * (((pos.x+k)>=0)*((pos.x+k)<size.x))) * s_gauss[k+halfkernelsize]);
-    sum.y += s_gauss[k+halfkernelsize];
+    sum += (tex1Dfetch(texRef, pixIdx + k * (((pos.x+k)>=0)*((pos.x+k)<size.x))) * s_gauss[k+halfkernelsize]);
   }
 
-  output[pixIdx] = __fdividef(sum.x,sum.y);
+  output[pixIdx] = sum;
 }
 
 __global__ void kernel_1DConvolutionV_texture(float *output, int3 size, short halfkernelsize){
 ///this version uses the texture memory to store the gaussian kernel and the
 ///image data
 
-  float2 sum;
+  float sum = 0;
   int2 pos;
 
   extern __shared__ float s_gauss[];
@@ -85,14 +92,13 @@ __global__ void kernel_1DConvolutionV_texture(float *output, int3 size, short ha
 
   if(threadIdx.x<((halfkernelsize<<1)+1)) s_gauss[threadIdx.x] = tex1Dfetch(gaussTexRef,threadIdx.x);
   
-  sum.x = sum.y = 0;
+  __syncthreads();
 
   for(int k=-halfkernelsize;k<(halfkernelsize+1);k++){
-    sum.x += (tex1Dfetch(texRef, pixIdx + (size.x*k) * (((pos.y+k)>=0)*((pos.y+k<size.y)))) * s_gauss[k+halfkernelsize]);
-    sum.y += s_gauss[k+halfkernelsize];
+    sum += (tex1Dfetch(texRef, pixIdx + (size.x*k) * (((pos.y+k)>=0)*((pos.y+k<size.y)))) * s_gauss[k+halfkernelsize]);
   }
 
-  output[pixIdx] = __fdividef(sum.x,sum.y);
+  output[pixIdx] = sum;
 }
 
 extern "C"
@@ -108,8 +114,6 @@ float* cudaDiscreteGaussian2D(const float *d_img, int width, int height, float g
   dim3 DimBlock(threadsPerBlock,1,1);
   dim3 DimGrid(blocksPerGrid,1,1);
 
-  int kernelSize = maxKernelWidth*sizeof(float);
-
   unsigned int timer = 0;
   cutCreateTimer( &timer );
   cutStartTimer( timer );  /// Start timer
@@ -117,15 +121,16 @@ float* cudaDiscreteGaussian2D(const float *d_img, int width, int height, float g
   /// The Gaussian Kernel Width must be odd
   if (maxKernelWidth < 1) maxKernelWidth = 1;
   if (maxKernelWidth%2 == 0) maxKernelWidth--;
-  short halfkernelsize = maxKernelWidth >> 1;
+  short halfKernelWidth = maxKernelWidth >> 1;
+
+  int kernelSize = maxKernelWidth*sizeof(float);
 
   float *cudaGaussKernel;
   cudaMalloc((void**)&cudaGaussKernel,kernelSize);
 
   /// Calculate gaussian kernel
-  calculateGaussianKernel<<<1,maxKernelWidth,kernelSize>>>(cudaGaussKernel, gaussianVariance, maxKernelWidth);
+  calculateGaussianKernel<<<1,maxKernelWidth,kernelSize>>>(cudaGaussKernel, gaussianVariance, halfKernelWidth);
 
-  /// Allocate output memory to image data
   float *d_output;
   cudaMalloc((void**) &d_output, size.z*sizeof(float));
 
@@ -149,13 +154,13 @@ float* cudaDiscreteGaussian2D(const float *d_img, int width, int height, float g
   texRef.normalized = false;
   texRef.filterMode = cudaFilterModePoint;
 
-  kernel_1DConvolutionH_texture<<<DimGrid,DimBlock,kernelSize>>>(d_tmpbuffer,size,halfkernelsize);
+  kernel_1DConvolutionH_texture<<<DimGrid,DimBlock,kernelSize>>>(d_tmpbuffer,size,halfKernelWidth);
 
   /// Bind temporary data texture
   cudaUnbindTexture(texRef);
   cudaBindTexture (NULL ,texRef, d_tmpbuffer);
 
-  kernel_1DConvolutionV_texture<<<DimGrid,DimBlock,kernelSize>>>(d_output,size,halfkernelsize);
+  kernel_1DConvolutionV_texture<<<DimGrid,DimBlock,kernelSize>>>(d_output,size,halfKernelWidth);
 
   /// Free allocated memory
   cudaFree(d_tmpbuffer);
