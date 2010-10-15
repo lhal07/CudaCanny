@@ -38,7 +38,6 @@ TARGET_LINK_LIBRARIES(../bin/cudacanny
   ITKCommon
   ITKIO
   /home/ppginf/luis/cuda/lib/libcutil.a
-  /home/ppginf/luis/cuda/common/lib/linux/libcudpp.a
 )
 
 CUDA_BUILD_CLEAN_TARGET()
