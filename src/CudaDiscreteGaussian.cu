@@ -114,10 +114,6 @@ float* cudaDiscreteGaussian2D(const float *d_img, int width, int height, float g
   dim3 DimBlock(threadsPerBlock,1,1);
   dim3 DimGrid(blocksPerGrid,1,1);
 
-  unsigned int timer = 0;
-  cutCreateTimer( &timer );
-  cutStartTimer( timer );  /// Start timer
-
   /// The Gaussian Kernel Width must be odd
   if (maxKernelWidth < 1) maxKernelWidth = 1;
   if (maxKernelWidth%2 == 0) maxKernelWidth--;
@@ -168,10 +164,6 @@ float* cudaDiscreteGaussian2D(const float *d_img, int width, int height, float g
   cudaFree(cudaGaussKernel);
   cudaUnbindTexture(gaussTexRef);
   CUT_CHECK_ERROR("Memory image free failed");
-
-  cudaThreadSynchronize();
-  cutStopTimer( timer );  /// Stop timer
-  printf("Gaussian time = %f ms\n",cutGetTimerValue( timer ));
 
   return(d_output);
 }

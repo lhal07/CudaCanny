@@ -86,10 +86,6 @@ float* gradientMaximumDetector(float *d_mag, float *d_dir, int width, int height
   dim3 DimBlock(threadsPerBlock,1,1);
   dim3 DimGrid(blocksPerGrid,1,1);
 
-  unsigned int timer = 0;
-  cutCreateTimer( &timer );
-  cutStartTimer( timer );  ///< Start timer
-
 ///Non-maximum supression or Local Maximum Search
 
   float *d_img;
@@ -119,10 +115,6 @@ float* gradientMaximumDetector(float *d_mag, float *d_dir, int width, int height
   cudaUnbindTexture(dir_texRef);
   CUT_CHECK_ERROR("Memory image free failed");
  
-  cudaThreadSynchronize();
-  cutStopTimer( timer );  ///< Stop timer
-  printf("Maximum Detector time = %f ms\n",cutGetTimerValue( timer ));
-
   return(d_img);
 
 }
@@ -272,10 +264,6 @@ void hysteresis(float *d_img, int width, int height, const unsigned int t1, cons
   size.y = height;
   size.z = width*height;
 
-  unsigned int timer = 0;
-  cutCreateTimer( &timer );
-  cutStartTimer( timer );  ///< Start timer
-
   int threadsPerBlock = 256;
   int blocksPerGrid = (size.z + threadsPerBlock -1) >> 8;
   dim3 DimBlock(threadsPerBlock);
@@ -324,9 +312,5 @@ void hysteresis(float *d_img, int width, int height, const unsigned int t1, cons
   cudaFree(d_hys);
   CUT_CHECK_ERROR("Memory free failed");
   
-  cudaThreadSynchronize();
-  cutStopTimer( timer );  ///< Stop timer
-  printf("Hysteresis time = %f ms\n",cutGetTimerValue( timer ));
-
 }
 

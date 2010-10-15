@@ -16,8 +16,6 @@
 
 /// allocate texture variables
 texture<float, 1, cudaReadModeElementType> texRef;
-texture<float, 1, cudaReadModeElementType> mag_texRef;
-texture<short2, 1, cudaReadModeElementType> dir_texRef;
 
 
 __global__ void kernel_2DSobel(float *Magnitude, float *Direction, int3 size){
@@ -83,10 +81,6 @@ Tgrad* cudaSobel(Tgrad *d_gradient, const float *d_img, int width, int height){
   dim3 DimBlock(threadsPerBlock,1,1);
   dim3 DimGrid(blocksPerGrid,1,1);
 
-  unsigned int timer = 0;
-  cutCreateTimer( &timer );
-  cutStartTimer( timer );  ///< Start timer
-
   /// Allocate output memory to image data
   cudaMalloc((void**) &d_gradient->Strenght, size.z*sizeof(float));
   cudaMalloc((void**) &d_gradient->Direction, size.z*sizeof(short2));
@@ -100,10 +94,6 @@ Tgrad* cudaSobel(Tgrad *d_gradient, const float *d_img, int width, int height){
   texRef.filterMode = cudaFilterModePoint;
 
   kernel_2DSobel<<<DimGrid,DimBlock>>>(d_gradient->Strenght, d_gradient->Direction, size);
-
-  cudaThreadSynchronize();
-  cutStopTimer( timer );  ///< Stop timer
-  printf("Sobel time = %f ms\n",cutGetTimerValue( timer ));
 
   /// unbind texture reference
   cudaUnbindTexture(texRef);
