@@ -248,7 +248,6 @@ __global__ void kernel_hysteresis_glm1D(float *hys_img, int3 size){
 
     }while(modified_block_pixels);// end inner loop
 
-    //if ((pos.x<(size.x-1))&&(pos.y<(size.y-1))) 
     hys_img[pixIdx] = s_slice[sliceIdx];
 
   }while(modified_image_pixels);//end outer loop
