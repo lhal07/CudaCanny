@@ -33,6 +33,7 @@
 // For testing
 #include <time.h>
 #include <sys/time.h>
+#include <cuda.h>
 
 typedef unsigned char                                          ucharPixelType;
 typedef float                                                       PixelType;
@@ -67,7 +68,17 @@ int main (int argc, char** argv){
   reader->SetFileName( argv[1] );
   reader->Update();
 
-  gettimeofday(&tv1,NULL);
+  ///Warmup
+  unsigned int WarmupTimer = 0;
+  cutCreateTimer( &WarmupTimer );
+  cutStartTimer( WarmupTimer );
+  int *rub;
+  cudaMalloc( (void**)&rub, reader->GetOutput()->GetPixelContainer()->Size() * sizeof(int) );
+  cudaFree( rub );
+  CUT_CHECK_ERROR("Warmup failed");
+  cudaThreadSynchronize();
+  cutStopTimer( WarmupTimer );
+  printf("Warmup time = %f ms\n",cutGetTimerValue( WarmupTimer ));
 
   // Apply canny operator
   CannyFilter::Pointer canny = CannyFilter::New();
@@ -76,7 +87,9 @@ int main (int argc, char** argv){
   canny->SetUpperThreshold(t2);
   canny->SetLowerThreshold(t1);
   canny->SetMaximumKernelWidth(maxKernelWidth);
-//  canny->UpdateInCUDA(image->GetBufferPointer(),maxKernelWidth);
+
+  gettimeofday(&tv1,NULL);
+
   canny->Update();
 
   gettimeofday(&tv2,NULL);
