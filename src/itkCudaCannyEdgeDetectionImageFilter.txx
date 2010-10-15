@@ -102,17 +102,47 @@ CudaCannyEdgeDetectionImageFilter< TInputImage, TOutputImage >
   m_CudaGaussianFilter->SetVariance(m_Variance);
   m_CudaGaussianFilter->SetMaximumKernelWidth(m_MaximumKernelWidth);
   m_CudaGaussianFilter->SetInput(input);
+  
+  unsigned int timer = 0;
+  cutCreateTimer( &timer );
+  cutStartTimer( timer );  /// Start timer
+
   m_CudaGaussianFilter->Update();
+
+  cutStopTimer( timer );  /// Stop timer
+  printf("Gaussian time = %f ms\n",cutGetTimerValue( timer ));
 
   // 2.Apply the Sobel Filter to detect edges on the image.-------
   m_CudaSobelFilter->SetInput(m_CudaGaussianFilter->GetOutput());
+  
+  timer = 0;
+  cutCreateTimer( &timer );
+  cutStartTimer( timer );  ///< Start timer
+
   m_CudaSobelFilter->Update();
 
+  cutStopTimer( timer );  ///< Stop timer
+  printf("Sobel time = %f ms\n",cutGetTimerValue( timer ));
+
   // 3. Apply NonMaximumSupression operation on the gradient edges. -------
+  timer = 0;
+  cutCreateTimer( &timer );
+  cutStartTimer( timer );  ///< Start timer
+
   this->CudaNonMaximumSupression();
 
+  cutStopTimer( timer );  ///< Stop timer
+  printf("Maximum Detector time = %f ms\n",cutGetTimerValue( timer ));
+
   // 4. Apply Hysteresis Thresholding on the Maximum Values of gradient. -------
+  timer = 0;
+  cutCreateTimer( &timer );
+  cutStartTimer( timer );  ///< Start timer
+
   this->CudaHysteresisThresholding();
+
+  cutStopTimer( timer );  ///< Stop timer
+  printf("Hysteresis time = %f ms\n",cutGetTimerValue( timer ));
 
 }
 
