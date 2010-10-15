@@ -29,7 +29,6 @@ __global__ void kernel_2DSobel(float *Magnitude, float *Direction, int3 size){
 
   float2 g_i;
   g_i.x = g_i.y = 0;
-  int theta;
   float4 diagonal;
   float4 cross;
 
