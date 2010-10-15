@@ -97,10 +97,10 @@ CudaCannyEdgeDetectionImageFilter< TInputImage, TOutputImage >
  
   // Allocate output image object
   output->SetBufferedRegion(output->GetRequestedRegion());
-  output->Allocate();
   
   // 1.Apply the Gaussian Filter to the input image.-------
   m_CudaGaussianFilter->SetVariance(m_Variance);
+  m_CudaGaussianFilter->SetMaximumKernelWidth(m_MaximumKernelWidth);
   m_CudaGaussianFilter->SetInput(input);
   m_CudaGaussianFilter->Update();
 
