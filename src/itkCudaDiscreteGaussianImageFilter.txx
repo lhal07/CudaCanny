@@ -44,7 +44,6 @@ CudaDiscreteGaussianImageFilter<TInputImage, TOutputImage>
   
   // Allocate output image object
   output->SetBufferedRegion(output->GetRequestedRegion());
-  output->Allocate();
 
   // Get image size
   typename OutputImageType::SizeType size;
