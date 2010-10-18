@@ -26,9 +26,6 @@ CudaCannyEdgeDetectionImageFilter<TInputImage, TOutputImage>::
 CudaCannyEdgeDetectionImageFilter()
 {
   
-  m_Variance = NumericTraits<OutputImagePixelType>::Zero;
-  m_OutsideValue = NumericTraits<OutputImagePixelType>::Zero;
-  m_Threshold = NumericTraits<OutputImagePixelType>::Zero;
   m_UpperThreshold = NumericTraits<OutputImagePixelType>::Zero;
   m_LowerThreshold = NumericTraits<OutputImagePixelType>::Zero;
 
@@ -156,17 +153,11 @@ CudaCannyEdgeDetectionImageFilter<TInputImage,TOutputImage>
   os << indent << "Variance: "
      << static_cast<typename NumericTraits<OutputImagePixelType>::PrintType>(m_Variance)
      << std::endl;
-  os << indent << "Threshold: "
-     << static_cast<typename NumericTraits<OutputImagePixelType>::PrintType>(m_Threshold)
-     << std::endl;
   os << indent << "UpperThreshold: "
      << static_cast<typename NumericTraits<OutputImagePixelType>::PrintType>(m_UpperThreshold)
      << std::endl;
   os << indent << "LowerThreshold: "
      << static_cast<typename NumericTraits<OutputImagePixelType>::PrintType>(m_LowerThreshold)
-     << std::endl;
-  os << indent << "OutsideValue: "
-     << static_cast<typename NumericTraits<OutputImagePixelType>::PrintType>(m_OutsideValue)
      << std::endl;
 }
 

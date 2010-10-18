@@ -89,7 +89,7 @@ public:
   
   /** The variance for the discrete Gaussian kernel.  Sets the variance
    * independently for each dimension, but 
-   * see also SetVariance(const double v). The default is 0.0 in each
+   * see also SetVariance(const double v). The default is 1.0 in each
    * dimension. If UseImageSpacing is true, the units are the physical units
    * of your image.  If UseImageSpacing is false then the units are
    * pixels. */
@@ -97,7 +97,7 @@ public:
   itkGetConstMacro(Variance, const float);
 
   /** Set the kernel to be no wider than MaximumKernelWidth pixels,
-   *  even if MaximumError demands it. The default is 32 pixels. */
+   *  even if MaximumError demands it. The default is 3 pixels. */
   itkGetConstMacro(MaximumKernelWidth, unsigned int);
   itkSetMacro(MaximumKernelWidth, unsigned int);
 
@@ -109,18 +109,6 @@ public:
   itkGetConstMacro(FilterDimensionality, unsigned int);
   itkSetMacro(FilterDimensionality, unsigned int);
   
-  /** Convenience Set methods for setting all dimensional parameters
-   *  to the same values. */
-//  void SetVariance (const float v)
-//    {    m_Variance = v; }
-
-  /** Sets a limit for growth of the kernel.  Small maximum error values with
-   *  large variances will yield very large kernel sizes.  This value can be
-   *  used to truncate a kernel in such instances.  A warning will be given on
-   *  truncation of the kernel. */
-//  void SetMaximumKernelWidth( unsigned int n )
-//        {    m_MaximumKernelWidth = n; }
-
   /** DiscreteGaussianImageFilter needs a larger input requested region
    * than the output requested region (larger by the size of the
    * Gaussian kernel).  As such, DiscreteGaussianImageFilter needs to

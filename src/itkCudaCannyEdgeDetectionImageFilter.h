@@ -101,54 +101,25 @@ public:
                       TOutputImage::ImageDimension);
   
   /** Standard get/set macros for filter parameters. */
-//  itkSetMacro(Variance, double);
-//  itkGetConstMacro(Variance, const double);
-  itkSetMacro(MaximumKernelWidth, double);
-  itkGetConstMacro(MaximumKernelWidth, const double);
 
-  /** Maximum kernel size allowed.  This value is used to truncate a kernel
-   *  that has grown too large.  A warning is given when the specified maximum 
-   *  error causes the kernel to exceed this size. */
-  unsigned int m_MaximumKernelWidth;
- 
+  /** Set/Get the Variance parameter used by the Gaussian smoothing
+      filter in this algorithm */
+  itkSetMacro(Variance, float);
+  itkGetConstMacro(Variance, const float);
+
   /** Sets a limit for growth of the kernel.  Small maximum error values with
    *  large variances will yield very large kernel sizes.  This value can be
    *  used to truncate a kernel in such instances.  A warning will be given on
    *  truncation of the kernel. */
-  void SetMaximumKernelWidth( unsigned int n )
-        {    m_MaximumKernelWidth = n; }
-  
-  /** Set/Get the Variance parameter used by the Gaussian smoothing
-      filter in this algorithm */
-  void SetVariance(const double v)
-        {    m_Variance = v; }
-  
-  /* Set the Threshold value for detected edges. */
-  void SetThreshold(const OutputImagePixelType th)
-    {
-    this->m_Threshold = th;
-    this->m_UpperThreshold = m_Threshold;
-    this->m_LowerThreshold = m_Threshold/2.0;
-    itkLegacyReplaceBodyMacro(SetThreshold, 2.2, SetUpperThreshold);
-    }
-  
-  OutputImagePixelType GetThreshold(OutputImagePixelType th) 
-    {
-    itkLegacyReplaceBodyMacro(GetThreshold, 2.2, GetUpperThreshold);
-    return this->m_Threshold; 
-    }
+  itkSetMacro(MaximumKernelWidth, unsigned int);
+  itkGetConstMacro(MaximumKernelWidth, const unsigned int);
 
   ///* Set the Threshold value for detected edges. */
   itkSetMacro(UpperThreshold, OutputImagePixelType );
   itkGetConstMacro(UpperThreshold, OutputImagePixelType);
-
   itkSetMacro(LowerThreshold, OutputImagePixelType );
   itkGetConstMacro(LowerThreshold, OutputImagePixelType);
 
-  /* Set the Thresholdvalue for detected edges. */
-  itkSetMacro(OutsideValue, OutputImagePixelType);
-  itkGetConstMacro(OutsideValue, OutputImagePixelType);
-  
   /** CannyEdgeDetectionImageFilter needs a larger input requested
    * region than the output requested region ( derivative operators, etc).  
    * As such, CannyEdgeDetectionImageFilter needs to provide an implementation
@@ -195,19 +166,18 @@ private:
   void CudaHysteresisThresholding();
 
   /** The variance of the Gaussian Filter used in this filter */
-  double m_Variance;
+  float m_Variance;
+
+  /** Maximum kernel size allowed.  This value is used to truncate a kernel
+   *  that has grown too large.  A warning is given when the specified maximum 
+   *  error causes the kernel to exceed this size. */
+  unsigned int m_MaximumKernelWidth;
 
   /** Upper threshold value for identifying edges. */
   OutputImagePixelType m_UpperThreshold;  //should be float here?
   
   /** Lower threshold value for identifying edges. */
   OutputImagePixelType m_LowerThreshold; //should be float here?
-
-  /** Threshold value for identifying edges. */
-  OutputImagePixelType m_Threshold;
-
-  /** "Background" value for use in thresholding. */
-  OutputImagePixelType m_OutsideValue;
 
   /** CudaGaussian filter to smooth the input image  */
   typename CudaGaussianImageFilterType::Pointer m_CudaGaussianFilter;
