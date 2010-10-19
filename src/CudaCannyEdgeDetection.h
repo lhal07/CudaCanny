@@ -19,7 +19,7 @@
 #define NOT_MODIFIED 0
 
 extern "C"
-float* gradientMaximumDetector(float *d_mag, float *d_dir, int width, int height);
+float* cudaGradientMaximumDetector(float *d_mag, float *d_dir, int width, int height);
 
 extern "C"
-void hysteresis(float *d_img, int width, int height, const unsigned int t1, const unsigned int t2);
+void cudaHysteresis(float *d_img, int width, int height, const unsigned int t1, const unsigned int t2);

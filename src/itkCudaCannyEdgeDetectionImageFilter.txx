@@ -51,7 +51,7 @@ CudaCannyEdgeDetectionImageFilter<TInputImage,TOutputImage>
 {
 
   // Set input, output and temporary pointers
-  typename OutputImageType::Pointer input  = m_CudaSobelFilter->GetGradientStrenght();
+  typename OutputImageType::Pointer input  = m_CudaSobelFilter->GetGradientMagnitude();
   typename OutputImageType::Pointer output = this->GetOutput();
   typename TOutputImage::PixelType * tmpNMS;
 
@@ -59,7 +59,7 @@ CudaCannyEdgeDetectionImageFilter<TInputImage,TOutputImage>
   typename OutputImageType::SizeType size = output->GetLargestPossibleRegion().GetSize();
 
   // Call CudaNMS. Defined on CudaCannyEdgeDetection.cu
-  tmpNMS = gradientMaximumDetector(input->GetDevicePointer(), m_CudaSobelFilter->GetGradientDirection()->GetDevicePointer(), size[0], size[1]);
+  tmpNMS = cudaGradientMaximumDetector(input->GetDevicePointer(), m_CudaSobelFilter->GetGradientDirection()->GetDevicePointer(), size[0], size[1]);
 
   // Set NMS pointer on the output image
   output->GetPixelContainer()->SetDevicePointer(tmpNMS, size[0]*size[1], true);
@@ -78,7 +78,7 @@ CudaCannyEdgeDetectionImageFilter<TInputImage,TOutputImage>
   typename OutputImageType::SizeType size = output->GetLargestPossibleRegion().GetSize();
 
   // Call CudaHysteresis. Defined on CudaCannyEdgeDetection.cu
-  hysteresis(output->GetDevicePointer(), size[0], size[1], m_LowerThreshold, m_UpperThreshold);
+  cudaHysteresis(output->GetDevicePointer(), size[0], size[1], m_LowerThreshold, m_UpperThreshold);
 
 }
 

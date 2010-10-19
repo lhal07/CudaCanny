@@ -74,7 +74,7 @@ __global__ void nonMaximumSupression_texture(float* image, int3 size){
 
 }
 
-float* gradientMaximumDetector(float *d_mag, float *d_dir, int width, int height){
+float* cudaGradientMaximumDetector(float *d_mag, float *d_dir, int width, int height){
 
   int3 size;
   size.x = width;
@@ -120,7 +120,7 @@ float* gradientMaximumDetector(float *d_mag, float *d_dir, int width, int height
 }
 
 
-__global__ void hysteresisPreparation(float *hysteresis, int3 size, const unsigned int t1, const unsigned int t2){
+__global__ void hysteresisPreparation_kernel(float *hysteresis, int3 size, const unsigned int t1, const unsigned int t2){
 
   ///pixel index of this thread
   int pixIdx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -147,7 +147,7 @@ __global__ void hysteresisPreparation(float *hysteresis, int3 size, const unsign
 
 }
 
-__global__ void hysteresisWrite(float *output, int3 size){
+__global__ void hysteresisWrite_kernel(float *output, int3 size){
 
   ///pixel index of this thread
   int pixIdx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -254,7 +254,7 @@ __global__ void kernel_hysteresis_glm1D(float *hys_img, int3 size){
 
 }
 
-void hysteresis(float *d_img, int width, int height, const unsigned int t1, const unsigned int t2){
+void cudaHysteresis(float *d_img, int width, int height, const unsigned int t1, const unsigned int t2){
  
   int3 size;
   size.x = width;
@@ -278,7 +278,7 @@ void hysteresis(float *d_img, int width, int height, const unsigned int t1, cons
   texRef.normalized = false;
   texRef.filterMode = cudaFilterModePoint;
  
-  hysteresisPreparation<<<DimGrid,DimBlock>>>(d_hys, size, t1, t2);
+  hysteresisPreparation_kernel<<<DimGrid,DimBlock>>>(d_hys, size, t1, t2);
 
   /// free allocated memory
   cudaUnbindTexture(texRef);
@@ -299,7 +299,7 @@ void hysteresis(float *d_img, int width, int height, const unsigned int t1, cons
   hysTexRef.normalized = false;
   hysTexRef.filterMode = cudaFilterModePoint;
 
-  hysteresisWrite<<<DimGrid,DimBlock>>>(d_img, size);
+  hysteresisWrite_kernel<<<DimGrid,DimBlock>>>(d_img, size);
   CUT_CHECK_ERROR("Hysteresis Write failed");
 
   /// free allocated memory

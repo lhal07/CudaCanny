@@ -82,8 +82,8 @@ Tgrad* cudaSobel(Tgrad *d_gradient, const float *d_img, int width, int height){
   dim3 DimGrid(blocksPerGrid,1,1);
 
   /// Allocate output memory to image data
-  cudaMalloc((void**) &d_gradient->Strenght, size.z*sizeof(float));
-  cudaMalloc((void**) &d_gradient->Direction, size.z*sizeof(short2));
+  cudaMalloc((void**) &d_gradient->Magnitude, size.z*sizeof(float));
+  cudaMalloc((void**) &d_gradient->Direction, size.z*sizeof(float));
 
   /// bind a texture to the CUDA array
   cudaBindTexture (NULL ,texRef, d_img);
@@ -93,7 +93,7 @@ Tgrad* cudaSobel(Tgrad *d_gradient, const float *d_img, int width, int height){
   texRef.normalized = false;
   texRef.filterMode = cudaFilterModePoint;
 
-  kernel_2DSobel<<<DimGrid,DimBlock>>>(d_gradient->Strenght, d_gradient->Direction, size);
+  kernel_2DSobel<<<DimGrid,DimBlock>>>(d_gradient->Magnitude, d_gradient->Direction, size);
 
   /// unbind texture reference
   cudaUnbindTexture(texRef);

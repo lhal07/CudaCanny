@@ -93,7 +93,7 @@ public:
   DirectionType* GetGradientDirection();
 
   /** Method for getting the gradient strenght/magnitude of each pixel */
-  OutputImageType* GetGradientStrenght();
+  OutputImageType* GetGradientMagnitude();
   
   /**
    * SobelEdgeDetectionImageFilter needs a larger input requested region than

@@ -5,11 +5,11 @@
  * \since 22/09/10
  */
 
-template <class TStrenght, class TDirection>
+template <class TMagnitude, class TDirection>
 class Gradient
 {
 public:
-  TStrenght  *Strenght;
+  TMagnitude *Magnitude;
   TDirection *Direction;
 };
 
