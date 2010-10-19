@@ -13,6 +13,7 @@
 
 #include "CudaCannyEdgeDetection.h"
 
+#define THREADS_PER_BLOCK 256
 
 /// allocate texture variables
 texture<float, 1, cudaReadModeElementType> texRef;
@@ -81,9 +82,8 @@ float* cudaGradientMaximumDetector(float *d_mag, float *d_dir, int width, int he
   size.y = height;
   size.z = width*height;
 
-  int threadsPerBlock = 256;
-  int blocksPerGrid = ((size.z) + threadsPerBlock -1) >> 8;
-  dim3 DimBlock(threadsPerBlock,1,1);
+  int blocksPerGrid = ((size.z) + THREADS_PER_BLOCK -1)/THREADS_PER_BLOCK;
+  dim3 DimBlock(THREADS_PER_BLOCK,1,1);
   dim3 DimGrid(blocksPerGrid,1,1);
 
 ///Non-maximum supression or Local Maximum Search
@@ -261,10 +261,9 @@ void cudaHysteresis(float *d_img, int width, int height, const unsigned int t1, 
   size.y = height;
   size.z = width*height;
 
-  int threadsPerBlock = 256;
-  int blocksPerGrid = (size.z + threadsPerBlock -1) >> 8;
-  dim3 DimBlock(threadsPerBlock);
-  dim3 DimGrid(blocksPerGrid);
+  int blocksPerGrid = (size.z + THREADS_PER_BLOCK -1)/THREADS_PER_BLOCK;
+  dim3 DimBlock(THREADS_PER_BLOCK,1,1);
+  dim3 DimGrid(blocksPerGrid,1,1);
 
   float *d_hys;
   cudaMalloc((void**) &d_hys, (size.z*sizeof(float)));

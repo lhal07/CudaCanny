@@ -13,6 +13,7 @@
 
 #include "CudaSobelEdgeDetection.h"
 
+#define THREADS_PER_BLOCK 256
 
 /// allocate texture variables
 texture<float, 1, cudaReadModeElementType> texRef;
@@ -76,9 +77,8 @@ Tgrad* cudaSobel(Tgrad *d_gradient, const float *d_img, int width, int height){
   size.y = height;
   size.z = width*height;
 
-  int threadsPerBlock = 256;
-  int blocksPerGrid = ((size.z) + threadsPerBlock -1) >> 8;
-  dim3 DimBlock(threadsPerBlock,1,1);
+  int blocksPerGrid = ((size.z) + THREADS_PER_BLOCK -1)/THREADS_PER_BLOCK;
+  dim3 DimBlock(THREADS_PER_BLOCK,1,1);
   dim3 DimGrid(blocksPerGrid,1,1);
 
   /// Allocate output memory to image data
