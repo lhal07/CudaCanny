@@ -50,7 +50,7 @@ CudaDiscreteGaussianImageFilter<TInputImage, TOutputImage>
   size = output->GetLargestPossibleRegion().GetSize();
 
   // Call cudaGaussian. Defined on CudaDiscreteGaussian.cu
-  ptr = cudaDiscreteGaussian2D(input->GetDevicePointer(), size[0], size[1], (float) m_Variance, m_MaximumKernelWidth);
+  ptr = cudaDiscreteGaussian2D(input->GetDevicePointer(), size[0], size[1], (float) this->GetVariance(), this->GetMaximumKernelWidth());
 
   // Set image pointer to the output image
   output->GetPixelContainer()->SetDevicePointer(ptr, size[0]*size[1], true);

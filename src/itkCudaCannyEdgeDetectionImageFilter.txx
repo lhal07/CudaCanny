@@ -116,7 +116,7 @@ CudaCannyEdgeDetectionImageFilter<TInputImage,TOutputImage>
   typename OutputImageType::SizeType size = output->GetLargestPossibleRegion().GetSize();
 
   // Call CudaHysteresis. Defined on CudaCannyEdgeDetection.cu
-  cudaHysteresis(output->GetDevicePointer(), size[0], size[1], m_LowerThreshold, m_UpperThreshold);
+  cudaHysteresis(output->GetDevicePointer(), size[0], size[1], this->GetLowerThreshold(), this->GetUpperThreshold());
 
 }
 
@@ -134,8 +134,6 @@ CudaCannyEdgeDetectionImageFilter< TInputImage, TOutputImage >
   output->SetBufferedRegion(output->GetRequestedRegion());
   
   // 1.Apply the Gaussian Filter to the input image.-------
-//  m_CudaGaussianFilter->SetVariance(m_Variance);
-//  m_CudaGaussianFilter->SetMaximumKernelWidth(m_MaximumKernelWidth);
   m_CudaGaussianFilter->SetInput(input);
   
   unsigned int timer = 0;
