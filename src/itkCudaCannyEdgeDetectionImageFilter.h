@@ -104,15 +104,15 @@ public:
 
   /** Set/Get the Variance parameter used by the Gaussian smoothing
       filter in this algorithm */
-  itkSetMacro(Variance, float);
-  itkGetConstMacro(Variance, const float);
+  virtual void SetVariance(float);
+  virtual const float GetVariance();
 
   /** Sets a limit for growth of the kernel.  Small maximum error values with
    *  large variances will yield very large kernel sizes.  This value can be
    *  used to truncate a kernel in such instances.  A warning will be given on
    *  truncation of the kernel. */
-  itkSetMacro(MaximumKernelWidth, unsigned int);
-  itkGetConstMacro(MaximumKernelWidth, const unsigned int);
+  virtual void SetMaximumKernelWidth(unsigned int);
+  virtual const unsigned int GetMaximumKernelWidth();
 
   ///* Set the Threshold value for detected edges. */
   itkSetMacro(UpperThreshold, OutputImagePixelType );
@@ -164,14 +164,6 @@ private:
 
   /** Implementation of Hysteresis Thresholding on Cuda */
   void CudaHysteresisThresholding();
-
-  /** The variance of the Gaussian Filter used in this filter */
-  float m_Variance;
-
-  /** Maximum kernel size allowed.  This value is used to truncate a kernel
-   *  that has grown too large.  A warning is given when the specified maximum 
-   *  error causes the kernel to exceed this size. */
-  unsigned int m_MaximumKernelWidth;
 
   /** Upper threshold value for identifying edges. */
   OutputImagePixelType m_UpperThreshold;  //should be float here?

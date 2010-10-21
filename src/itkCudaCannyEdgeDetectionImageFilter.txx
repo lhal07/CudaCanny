@@ -47,6 +47,44 @@ CudaCannyEdgeDetectionImageFilter<TInputImage,TOutputImage>
 template <class TInputImage, class TOutputImage>
 void 
 CudaCannyEdgeDetectionImageFilter<TInputImage,TOutputImage>
+::SetVariance(float v)
+{
+  // call the class' implementation of this method
+  m_CudaGaussianFilter->SetVariance(v);
+  return;
+}
+
+template <class TInputImage, class TOutputImage>
+const float 
+CudaCannyEdgeDetectionImageFilter<TInputImage,TOutputImage>
+::GetVariance()
+{
+  // call the class' implementation of this method
+  return m_CudaGaussianFilter->GetVariance();
+}
+
+template <class TInputImage, class TOutputImage>
+void 
+CudaCannyEdgeDetectionImageFilter<TInputImage,TOutputImage>
+::SetMaximumKernelWidth(unsigned int k)
+{
+  // call the class' implementation of this method
+  m_CudaGaussianFilter->SetMaximumKernelWidth(k);
+  return;
+}
+
+template <class TInputImage, class TOutputImage>
+const unsigned int 
+CudaCannyEdgeDetectionImageFilter<TInputImage,TOutputImage>
+::GetMaximumKernelWidth()
+{
+  // call the class' implementation of this method
+  return m_CudaGaussianFilter->GetMaximumKernelWidth();
+}
+
+template <class TInputImage, class TOutputImage>
+void 
+CudaCannyEdgeDetectionImageFilter<TInputImage,TOutputImage>
 ::CudaNonMaximumSupression()
 {
 
@@ -96,8 +134,8 @@ CudaCannyEdgeDetectionImageFilter< TInputImage, TOutputImage >
   output->SetBufferedRegion(output->GetRequestedRegion());
   
   // 1.Apply the Gaussian Filter to the input image.-------
-  m_CudaGaussianFilter->SetVariance(m_Variance);
-  m_CudaGaussianFilter->SetMaximumKernelWidth(m_MaximumKernelWidth);
+//  m_CudaGaussianFilter->SetVariance(m_Variance);
+//  m_CudaGaussianFilter->SetMaximumKernelWidth(m_MaximumKernelWidth);
   m_CudaGaussianFilter->SetInput(input);
   
   unsigned int timer = 0;
@@ -150,9 +188,6 @@ CudaCannyEdgeDetectionImageFilter<TInputImage,TOutputImage>
 {
   Superclass::PrintSelf(os,indent);
 
-  os << indent << "Variance: "
-     << static_cast<typename NumericTraits<OutputImagePixelType>::PrintType>(m_Variance)
-     << std::endl;
   os << indent << "UpperThreshold: "
      << static_cast<typename NumericTraits<OutputImagePixelType>::PrintType>(m_UpperThreshold)
      << std::endl;
