@@ -162,12 +162,16 @@ __global__ void hysteresisWrite_kernel(float *output, int3 size){
 
 }
 
-__global__ void kernel_hysteresis_glm1D(float *hys_img, int3 size){
+__global__ void kernel_hysteresis_glm1D(float *hys_img, int3 size, int *gridUpdate){
 
   __shared__ float s_slice[SLICE_WIDTH*SLICE_WIDTH];
   __shared__ int modified_block_pixels; /// control inner loop
   __shared__ int modified_image_pixels; /// control outer loop
+  int gU; // grid Update value
   float edge;
+
+  int gridWidth = (size.x + SLICE_BLOCK_WIDTH) / SLICE_BLOCK_WIDTH;
+
 
   // pixel position indexes on slice
   int2 slice_pos;
@@ -183,6 +187,8 @@ __global__ void kernel_hysteresis_glm1D(float *hys_img, int3 size){
 
   // pixel position at the hysteresis image
   int pixIdx = pos.y * size.x + pos.x;
+
+  if (!threadIdx.x) gridUpdate[blockIdx.x] = 0;
 
   // load center
   s_slice[sliceIdx] = hys_img[pixIdx];
@@ -248,7 +254,25 @@ __global__ void kernel_hysteresis_glm1D(float *hys_img, int3 size){
 
     }while(modified_block_pixels);// end inner loop
 
-    hys_img[pixIdx] = s_slice[sliceIdx];
+    if (!threadIdx.x) gridUpdate[blockIdx.x]++;
+    gU = gridUpdate[blockIdx.x];
+
+    if (modified_image_pixels) hys_img[pixIdx] = s_slice[sliceIdx];
+
+    // barrier
+    while (! ((blockIdx.x<gridWidth)+\
+             ((((blockIdx.x%gridWidth) == 0)+(gU == gridUpdate[blockIdx.x-gridWidth-1])) *\
+             (gU == gridUpdate[blockIdx.x-gridWidth]) *\
+             (((blockIdx.x%gridWidth)==(gridWidth-1))+(gU == gridUpdate[blockIdx.x-gridWidth+1])))) *\
+             (((blockIdx.x%gridWidth)==0)+(gU == gridUpdate[blockIdx.x-1])) *\
+             (((blockIdx.x%gridWidth)==(gridWidth-1))+(gU == gridUpdate[blockIdx.x-1])) *\
+             ((blockIdx.x>=(gridDim.x-gridWidth))+\
+             ((((blockIdx.x%gridWidth) == 0)+(gU == gridUpdate[blockIdx.x+gridWidth-1])) *\
+             (gU == gridUpdate[blockIdx.x+gridWidth]) *\
+             (((blockIdx.x%gridWidth)==(gridWidth-1))+(gU == gridUpdate[blockIdx.x+gridWidth+1])))) ){
+
+    }
+    
 
   }while(modified_image_pixels);//end outer loop
 
@@ -283,11 +307,10 @@ void cudaHysteresis(float *d_img, int width, int height, const unsigned int t1, 
   cudaUnbindTexture(texRef);
   CUT_CHECK_ERROR("Memory unbind failed");
 
-  /// do not remove... ?
-  int *tt;
-  cudaMalloc((void**) &tt, (blocksPerGrid*sizeof(int)));
+  int *gridUpdate;
+  cudaMalloc((void**) &gridUpdate, (blocksPerGrid*sizeof(int)));
 
-  kernel_hysteresis_glm1D<<<DimGrid,DimBlock>>>(d_hys, size);
+  kernel_hysteresis_glm1D<<<DimGrid,DimBlock>>>(d_hys, size, gridUpdate);
   CUT_CHECK_ERROR("Hysteresis Kernel failed");
 
   /// bind a texture to the CUDA array
