@@ -20,7 +20,7 @@
 #include "itkImageToImageFilter.h"
 #include "itkImage.h"
 #include "itkCudaDiscreteGaussianImageFilter.h"
-#include "itkCudaSobelEdgeDetectionImageFilter.h"
+#include "itkCudaZeroCrossingImageFilter.h"
 
 #include "cuda.h"
 #include "CudaCannyEdgeDetection.h"
@@ -120,15 +120,6 @@ public:
   itkSetMacro(LowerThreshold, OutputImagePixelType );
   itkGetConstMacro(LowerThreshold, OutputImagePixelType);
 
-  /** CannyEdgeDetectionImageFilter needs a larger input requested
-   * region than the output requested region ( derivative operators, etc).  
-   * As such, CannyEdgeDetectionImageFilter needs to provide an implementation
-   * for GenerateInputRequestedRegion() in order to inform the 
-   * pipeline execution model.
-   *
-   * \sa ImageToImageFilter::GenerateInputRequestedRegion()  */  
-  virtual void GenerateInputRequestedRegion();
-
 #ifdef ITK_USE_CONCEPT_CHECKING
   /** Begin concept checking */
   itkConceptMacro(InputHasNumericTraitsCheck,
@@ -154,28 +145,32 @@ protected:
   typedef CudaDiscreteGaussianImageFilter<InputImageType, OutputImageType>
                                                       CudaGaussianImageFilterType;
 
-  typedef CudaSobelEdgeDetectionImageFilter<OutputImageType, OutputImageType>
-                                                      CudaSobelImageFilterType;
+  typedef CudaZeroCrossingImageFilter<OutputImageType, OutputImageType>
+                                                      CudaZeroCrossingFilterType;
 private:
   virtual ~CudaCannyEdgeDetectionImageFilter(){};
 
-  /** Implementation of Non Maximum Supression on Cuda */
-  void CudaNonMaximumSupression();
+  /** Implementation of 2md Derivative and Magnitude calculation on Cuda*/
+  void Cuda2ndDerivative();
 
   /** Implementation of Hysteresis Thresholding on Cuda */
   void CudaHysteresisThresholding();
 
   /** Upper threshold value for identifying edges. */
-  OutputImagePixelType m_UpperThreshold;  //should be float here?
+  OutputImagePixelType m_UpperThreshold;
   
   /** Lower threshold value for identifying edges. */
-  OutputImagePixelType m_LowerThreshold; //should be float here?
+  OutputImagePixelType m_LowerThreshold;
+
+  /** Update buffers used during calculationsof multiple steps */
+  typename OutputImageType::Pointer m_UpdateBuffer1;
 
   /** CudaGaussian filter to smooth the input image  */
   typename CudaGaussianImageFilterType::Pointer m_CudaGaussianFilter;
  
-  /** CudaSobel filter to detect edges on the smoothed image  */
-  typename CudaSobelImageFilterType::Pointer m_CudaSobelFilter;
+  /** CudaZeroCrossing filter to detect zero crossings on the 2nd derivative
+   * image */
+  typename CudaZeroCrossingFilterType::Pointer m_CudaZeroCrossingFilter;
 };
 
 } //end of namespace itk

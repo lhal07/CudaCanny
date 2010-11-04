@@ -15,67 +15,64 @@
 
 #define THREADS_PER_BLOCK 256
 
+
 /// allocate texture variables
 texture<float, 1, cudaReadModeElementType> texRef;
 texture<float, 1, cudaReadModeElementType> mag_texRef;
-texture<float, 1, cudaReadModeElementType> dir_texRef;
 texture<float, 1, cudaReadModeElementType> hysTexRef;
+texture<float, 1, cudaReadModeElementType> der_texRef;
 
 
-__global__ void nonMaximumSupression_texture(float* image, int3 size){
-///this is the kernel to calculate the non-maximum supression of the image. It is
-///implemmented using texture fetching. The dependence of inter-block data makes
-///the use of shared memory hard-boiled.
+__global__ void kernel_Compute2ndDerivativePos(float *Magnitude, int3 size){
+/// This kernel receive the blurred image and it's second derivative and returns
+/// the Gradient Magnitude of the image.
+/// It ignores completely the borders of the image because the border's pixels
+/// doesn't have all neighbors.
 
-  int pixIdx = blockDim.x * blockIdx.x + threadIdx.x;
-  float mag = 0;
-  short2 dir;
+  /// Pixel index of this thread
+  int pixIdx = blockIdx.x * blockDim.x + threadIdx.x;
 
-  ///output pixel index
+  /// Output pixel index
   int2 pos;
   pos.y = __fdividef(pixIdx,size.x);
   pos.x = pixIdx-(pos.y*size.x);
 
-  if ((pos.x>0) && (pos.x<((size.x-1))) && (pos.y>0) && (pos.y<((size.y-1)))){
+  float4 cross_Lvv;
+  float4 cross_L;
 
-    /// Transform radian to degrees (multiply for 180/pi) to facilitate the
-    /// aproximation on an integer variable.
-    /// And sums 90 degrees to rotate the trigonometrical circle and eliminate the
-    /// negative values.
-    int theta = (tex1Dfetch(dir_texRef,pixIdx) * __fdividef(180,M_PI)) + 90;
+  float Lx = 0, 
+        Ly = 0, 
+        Lvvx = 0, 
+        Lvvy = 0,
+        gradMag = 0; 
 
-    /// Put the values between 158 and 180 degrees on the [0,22] interval.
-    /// This way, all horizontal pixels will be in the interval of [0,22].
-    if (theta > 157) theta -= 158;
+  ///Ignore the image borders
+  if ((pos.x) && ((size.x-1)-pos.x) && (pos.y) && ((size.y-1)-pos.y)){
 
-    /// This calculation does this:
-    //  direction
-    //  interval  -> theta
-    //  [0,22]    ->   0
-    //  [23,67]   ->   1
-    //  [68,112]  ->   2
-    //  [113,157] ->   3
-    theta = ceilf(__fdividef(theta-22,45));
+    cross_L.x = tex1Dfetch(texRef,(pixIdx-size.x));
+    cross_L.y = tex1Dfetch(texRef,(pixIdx+size.x));
+    cross_L.z = tex1Dfetch(texRef,(pixIdx-1));
+    cross_L.w = tex1Dfetch(texRef,(pixIdx+1));
+    cross_Lvv.x = tex1Dfetch(der_texRef,(pixIdx-size.x));
+    cross_Lvv.y = tex1Dfetch(der_texRef,(pixIdx+size.x));
+    cross_Lvv.z = tex1Dfetch(der_texRef,(pixIdx-1));
+    cross_Lvv.w = tex1Dfetch(der_texRef,(pixIdx+1));
 
-    /// The pixel will compare it's value with it's perpendicular(90 degrees) 
-    /// neighbor's here it's used short2 because it is 32bit lenght (this is 
-    /// good to the store coalescence).
-    /// theta -> ( x, y)
-    ///   0   -> ( 0,-1)
-    ///   1   -> (-1,-1)
-    ///   2   -> ( 1, 0)
-    ///   3   -> ( 1,-1)
-    dir = make_short2(1-(theta == 0)-((theta == 1)<<1),(theta == 2)-1);
+    Lx = (-0.5*cross_L.z) + (0.5*cross_L.w);
+    Ly = (0.5*cross_L.x) - (0.5*cross_L.y);
 
+    Lvvx = (-0.5*cross_Lvv.z) + (0.5*cross_Lvv.w);
+    Lvvy = (0.5*cross_Lvv.x) - (0.5*cross_Lvv.y);
 
-    mag = tex1Dfetch(mag_texRef,pixIdx);
-    mag *= ((mag>=tex1Dfetch(mag_texRef,(pixIdx+(size.x*dir.y)+dir.x)))*(mag>tex1Dfetch(mag_texRef,(pixIdx-(size.x*dir.y)-dir.x))));
+    gradMag = sqrt((Lx*Lx)+(Ly*Ly));
+
   }
-  image[pixIdx] = mag;
+
+  Magnitude[pixIdx] = (((Lvvx*(Lx/gradMag)+Lvvy*(Ly/gradMag))<=0)*gradMag);
 
 }
 
-float* cudaGradientMaximumDetector(float *d_mag, float *d_dir, int width, int height){
+float* cuda2ndDerivativePos(const float *d_input, const float *d_Lvv, int width, int height){
 
   int3 size;
   size.x = width;
@@ -86,36 +83,112 @@ float* cudaGradientMaximumDetector(float *d_mag, float *d_dir, int width, int he
   dim3 DimBlock(THREADS_PER_BLOCK,1,1);
   dim3 DimGrid(blocksPerGrid,1,1);
 
-///Non-maximum supression or Local Maximum Search
-
-  float *d_img;
-  cudaMalloc((void**) &d_img, (size.z*sizeof(float)));
+ /// Allocate output memory to image data
+  float * d_mag;
+  cudaMalloc((void**) &d_mag, (size.z*sizeof(float)));
   CUT_CHECK_ERROR("Memory image creation failed");
 
   /// bind a texture to the CUDA array
-  cudaBindTexture (NULL ,mag_texRef, d_mag);
+  cudaBindTexture (NULL, texRef, d_input);
+  cudaBindTexture (NULL, der_texRef, d_Lvv);
   CUT_CHECK_ERROR("Texture bind failed");
 
   /// host side settable texture attributes
-  mag_texRef.normalized = false;
-  mag_texRef.filterMode = cudaFilterModePoint;
-  
-  /// bind a texture to the CUDA array
-  cudaBindTexture (NULL ,dir_texRef, d_dir);
-  CUT_CHECK_ERROR("Texture bind failed");
+  texRef.normalized = false;
+  texRef.filterMode = cudaFilterModePoint;
 
-  /// host side settable texture attributes
-  dir_texRef.normalized = false;
-  dir_texRef.filterMode = cudaFilterModePoint;
-  
-  nonMaximumSupression_texture<<<DimGrid,DimBlock>>>(d_img, size);
+  kernel_Compute2ndDerivativePos<<<DimGrid,DimBlock>>>(d_mag, size);
 
-  ///free allocated memory
-  cudaUnbindTexture(mag_texRef);
-  cudaUnbindTexture(dir_texRef);
+  /// unbind texture reference
+  cudaUnbindTexture(texRef);
+  cudaUnbindTexture(der_texRef);
   CUT_CHECK_ERROR("Memory image free failed");
- 
-  return(d_img);
+
+  return(d_mag);
+
+}
+
+
+__global__ void kernel_Compute2ndDerivative(float *Lvv, int3 size){
+/// This kernel receives a blurred image and returns it's second derivative.
+/// It ignores completely the borders of the image becausa the border's pixels
+/// doesn't have all neighbors
+
+  /// Pixel index of this thread
+  int pixIdx = blockIdx.x * blockDim.x + threadIdx.x;
+
+  /// Output pixel index
+  int2 pos;
+  pos.y = __fdividef(pixIdx,size.x);
+  pos.x = pixIdx-(pos.y*size.x);
+
+  float4 diagonal;
+  float4 cross;
+  float pixel = tex1Dfetch(texRef,(pixIdx));
+
+  float Lx = 0, 
+        Ly = 0, 
+        Lxx = 0, 
+        Lxy = 0, 
+        Lyy = 0;
+
+  ///Ignore the image borders
+  if ((pos.x) && ((size.x-1)-pos.x) && (pos.y) && ((size.y-1)-pos.y)){
+
+    /// Stores the neighbors of the pixel on variables, because they will be
+    /// readen more than one time.
+    diagonal.x = tex1Dfetch(texRef,(pixIdx-size.x-1));
+    diagonal.y = tex1Dfetch(texRef,(pixIdx-size.x+1));
+    diagonal.z = tex1Dfetch(texRef,(pixIdx+size.x-1));
+    diagonal.w = tex1Dfetch(texRef,(pixIdx+size.x+1));
+    cross.x = tex1Dfetch(texRef,(pixIdx-size.x));
+    cross.y = tex1Dfetch(texRef,(pixIdx+size.x));
+    cross.z = tex1Dfetch(texRef,(pixIdx-1));
+    cross.w = tex1Dfetch(texRef,(pixIdx+1));
+
+    Lx = (-0.5*cross.z) + (0.5*cross.w);
+    Ly = (0.5*cross.x) - (0.5*cross.y);
+    Lxx = cross.z - (2*pixel) + cross.w;
+    Lxy = (-0.25*diagonal.x) + (0.25*diagonal.y) + (0.25*diagonal.z) + (-0.25*diagonal.w);
+    Lyy = cross.x -(2*pixel) + cross.y;
+
+  }
+
+  Lvv[pixIdx] = (((Lx*Lx)*Lxx) + (2*Lx*Ly*Lxy) + (Ly*Ly*Lyy))/((Lx*Lx) + (Ly*Ly));
+
+}
+
+float* cuda2ndDerivative(const float *d_input, int width, int height){
+
+  int3 size;
+  size.x = width;
+  size.y = height;
+  size.z = width*height;
+
+  int blocksPerGrid = ((size.z) + THREADS_PER_BLOCK -1)/THREADS_PER_BLOCK;
+  dim3 DimBlock(THREADS_PER_BLOCK,1,1);
+  dim3 DimGrid(blocksPerGrid,1,1);
+
+ /// Allocate output memory to image data
+  float * d_Lvv;
+  cudaMalloc((void**) &d_Lvv, (size.z*sizeof(float)));
+  CUT_CHECK_ERROR("Memory image creation failed");
+
+  /// bind a texture to the CUDA array
+  cudaBindTexture (NULL ,texRef, d_input);
+  CUT_CHECK_ERROR("Texture bind failed");
+
+  /// host side settable texture attributes
+  texRef.normalized = false;
+  texRef.filterMode = cudaFilterModePoint;
+
+  kernel_Compute2ndDerivative<<<DimGrid,DimBlock>>>(d_Lvv, size);
+
+  /// unbind texture reference
+  cudaUnbindTexture(texRef);
+  CUT_CHECK_ERROR("Memory image free failed");
+
+  return(d_Lvv);
 
 }
 
@@ -134,14 +207,9 @@ __global__ void hysteresisPreparation_kernel(float *hysteresis, int3 size, const
 
   if(pixIdx < size.z){
 
-    pixel = tex1Dfetch(texRef, pixIdx);
+    pixel = tex1Dfetch(mag_texRef, pixIdx)*tex1Dfetch(texRef,pixIdx);
 
-    ///Definitive edge = 255
-    ///Possible edge = 128
-    ///Non-edge = 0
-    pixel = ((POSSIBLE_EDGE-1)*(pixel>t2)+POSSIBLE_EDGE)*(pixel>t1);
-
-    hysteresis[pixIdx] = pixel;
+    hysteresis[pixIdx] = ((POSSIBLE_EDGE-1)*(pixel>t2)+POSSIBLE_EDGE)*(pixel>t1);
 
   }
 
@@ -278,7 +346,7 @@ __global__ void kernel_hysteresis_glm1D(float *hys_img, int3 size, int *gridUpda
 
 }
 
-void cudaHysteresis(float *d_img, int width, int height, const unsigned int t1, const unsigned int t2){
+float * cudaHysteresis(float *d_img, float *d_mag, int width, int height, const unsigned int t1, const unsigned int t2){
  
   int3 size;
   size.x = width;
@@ -289,12 +357,14 @@ void cudaHysteresis(float *d_img, int width, int height, const unsigned int t1, 
   dim3 DimBlock(THREADS_PER_BLOCK,1,1);
   dim3 DimGrid(blocksPerGrid,1,1);
 
+  float *d_edges;
   float *d_hys;
   cudaMalloc((void**) &d_hys, (size.z*sizeof(float)));
   CUT_CHECK_ERROR("Memory hysteresis image creation failed");
 
-  /// bind a texture to the CUDA array
+  /// bind a texture to the image
   cudaBindTexture (NULL ,texRef, d_img);
+  cudaBindTexture (NULL ,mag_texRef, d_mag);
   CUT_CHECK_ERROR("Texture bind failed");
 
   /// host side settable texture attributes
@@ -305,6 +375,7 @@ void cudaHysteresis(float *d_img, int width, int height, const unsigned int t1, 
 
   /// free allocated memory
   cudaUnbindTexture(texRef);
+  cudaUnbindTexture(mag_texRef);
   CUT_CHECK_ERROR("Memory unbind failed");
 
   int *gridUpdate;
@@ -331,5 +402,8 @@ void cudaHysteresis(float *d_img, int width, int height, const unsigned int t1, 
   cudaFree(d_hys);
   CUT_CHECK_ERROR("Memory free failed");
   
+  d_edges = d_img;
+  return(d_edges);
+
 }
 

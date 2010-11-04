@@ -25,23 +25,15 @@ template <class TInputImage, class TOutputImage>
 CudaCannyEdgeDetectionImageFilter<TInputImage, TOutputImage>::
 CudaCannyEdgeDetectionImageFilter()
 {
-  
+
   m_UpperThreshold = NumericTraits<OutputImagePixelType>::Zero;
   m_LowerThreshold = NumericTraits<OutputImagePixelType>::Zero;
 
   m_CudaGaussianFilter = CudaGaussianImageFilterType::New();
-  m_CudaSobelFilter = CudaSobelImageFilterType::New();
+  m_CudaZeroCrossingFilter = CudaZeroCrossingFilterType::New();
 
-}
- 
-template <class TInputImage, class TOutputImage>
-void 
-CudaCannyEdgeDetectionImageFilter<TInputImage,TOutputImage>
-::GenerateInputRequestedRegion()
-{
-  // call the superclass' implementation of this method
-  Superclass::GenerateInputRequestedRegion();
-  return;  
+  m_UpdateBuffer1  = OutputImageType::New();
+
 }
 
 template <class TInputImage, class TOutputImage>
@@ -85,22 +77,28 @@ CudaCannyEdgeDetectionImageFilter<TInputImage,TOutputImage>
 template <class TInputImage, class TOutputImage>
 void 
 CudaCannyEdgeDetectionImageFilter<TInputImage,TOutputImage>
-::CudaNonMaximumSupression()
+::Cuda2ndDerivative()
 {
 
   // Set input, output and temporary pointers
-  typename OutputImageType::Pointer input  = m_CudaSobelFilter->GetGradientMagnitude();
+  typename OutputImageType::Pointer input  = m_CudaGaussianFilter->GetOutput();
   typename OutputImageType::Pointer output = this->GetOutput();
-  typename TOutputImage::PixelType * tmpNMS;
+  typename OutputImageType::Pointer output1 = m_UpdateBuffer1;
+  typename TOutputImage::PixelType * deriv;
+  typename TOutputImage::PixelType * mag;
 
   // Get image size
   typename OutputImageType::SizeType size = output->GetLargestPossibleRegion().GetSize();
 
   // Call CudaNMS. Defined on CudaCannyEdgeDetection.cu
-  tmpNMS = cudaGradientMaximumDetector(input->GetDevicePointer(), m_CudaSobelFilter->GetGradientDirection()->GetDevicePointer(), size[0], size[1]);
+  deriv = cuda2ndDerivative(input->GetDevicePointer(),size[0],size[1]);
+
+  mag = cuda2ndDerivativePos(input->GetDevicePointer(),deriv,size[0],size[1]);
 
   // Set NMS pointer on the output image
-  output->GetPixelContainer()->SetDevicePointer(tmpNMS, size[0]*size[1], true);
+  output->GetPixelContainer()->SetDevicePointer(deriv, size[0]*size[1], true);
+  output1->GetPixelContainer()->SetDevicePointer(mag, size[0]*size[1], true);
+
 }
 
 template <class TInputImage, class TOutputImage>
@@ -110,14 +108,21 @@ CudaCannyEdgeDetectionImageFilter<TInputImage,TOutputImage>
 {
 
   // Get the image ponter
+  typename OutputImageType::Pointer mag    = m_UpdateBuffer1;
+  typename OutputImageType::Pointer deriv  = m_CudaZeroCrossingFilter->GetOutput();
   typename OutputImageType::Pointer output = this->GetOutput();
+  typename TOutputImage::PixelType * edges;
 
   // Get image size
   typename OutputImageType::SizeType size = output->GetLargestPossibleRegion().GetSize();
 
   // Call CudaHysteresis. Defined on CudaCannyEdgeDetection.cu
-  cudaHysteresis(output->GetDevicePointer(), size[0], size[1], this->GetLowerThreshold(), this->GetUpperThreshold());
+  // This Multiplyes the Zero crossings of the Second derivative with the
+  // magnitude gradients of the image.
+  edges = cudaHysteresis(deriv->GetDevicePointer(), mag->GetDevicePointer(), size[0], size[1], this->GetLowerThreshold(), this->GetUpperThreshold());
 
+  // Set Canny output
+  output->GetPixelContainer()->SetDevicePointer(edges, size[0]*size[1], true);
 }
 
 template< class TInputImage, class TOutputImage >
@@ -131,6 +136,10 @@ CudaCannyEdgeDetectionImageFilter< TInputImage, TOutputImage >
   typename OutputImageType::Pointer output = this->GetOutput();
  
   // Allocate output image object
+  m_UpdateBuffer1->CopyInformation( input );
+  m_UpdateBuffer1->SetRequestedRegion(input->GetRequestedRegion());
+  m_UpdateBuffer1->SetBufferedRegion(input->GetBufferedRegion());
+  m_UpdateBuffer1->Allocate();  
   output->SetBufferedRegion(output->GetRequestedRegion());
   
   // 1.Apply the Gaussian Filter to the input image.-------
@@ -145,29 +154,37 @@ CudaCannyEdgeDetectionImageFilter< TInputImage, TOutputImage >
   cutStopTimer( timer );  /// Stop timer
   printf("Gaussian time = %f ms\n",cutGetTimerValue( timer ));
 
-  // 2.Apply the Sobel Filter to detect edges on the image.-------
-  m_CudaSobelFilter->SetInput(m_CudaGaussianFilter->GetOutput());
-  
+  // 2. Calculate 2nd order directional derivative.-------
+  // Calculate the 2nd order directional derivative of the smoothed image.
+  // The output of this filter will be used to store the directional
+  // derivative.
   timer = 0;
   cutCreateTimer( &timer );
   cutStartTimer( timer );  ///< Start timer
 
-  m_CudaSobelFilter->Update();
+  this->Cuda2ndDerivative();
 
   cutStopTimer( timer );  ///< Stop timer
-  printf("Sobel time = %f ms\n",cutGetTimerValue( timer ));
+  printf("2nd Derivative time = %f ms\n",cutGetTimerValue( timer ));
 
-  // 3. Apply NonMaximumSupression operation on the gradient edges. -------
+  // 3. NonMaximumSupression.-------
+  // Calculate the zero crossings of the 2nd directional derivative and write 
+  // the result to output buffer. 
+  m_CudaZeroCrossingFilter->SetInput(this->GetOutput());
+
   timer = 0;
   cutCreateTimer( &timer );
   cutStartTimer( timer );  ///< Start timer
 
-  this->CudaNonMaximumSupression();
+  m_CudaZeroCrossingFilter->Update();
 
   cutStopTimer( timer );  ///< Stop timer
-  printf("Maximum Detector time = %f ms\n",cutGetTimerValue( timer ));
+  printf("Maximum Supression time = %f ms\n",cutGetTimerValue( timer ));
 
-  // 4. Apply Hysteresis Thresholding on the Maximum Values of gradient. -------
+  // 4. Hysteresis Thresholding.-------
+  // Get all the edges corresponding to zerocrossings by multiplying the 2nd
+  // directional derivative and the magnitude gradient on preparation.
+  // Then do the double thresholding upon the edge responses.
   timer = 0;
   cutCreateTimer( &timer );
   cutStartTimer( timer );  ///< Start timer
