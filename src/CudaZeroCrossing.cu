@@ -43,28 +43,16 @@ __global__ void kernel_zerocrossing(float* image, int3 size){
     cross.z = tex1Dfetch(texRef,pixIdx+1);
     cross.w = tex1Dfetch(texRef,pixIdx+size.x);
 
-    res = ((((pixel < 0) * (cross.x > 0)) ||\
-            ((pixel > 0) * (cross.x < 0)) ||\
-            ((!pixel) * (cross.x)) ||\
-            ((pixel) * (!cross.x))) *\
+    res = (((pixel*cross.x)<=0) *\
             (fabsf(pixel) < fabsf(cross.x)));
 
-    res = res || ((((pixel < 0) * (cross.y > 0)) ||\
-            ((pixel > 0) * (cross.y < 0)) ||\
-            ((!pixel) * (cross.y)) ||\
-            ((pixel) * (!cross.y))) *\
+    res = res || ((((pixel*cross.y)<=0)) *\
             (fabsf(pixel) < fabsf(cross.y)));
     
-    res = res || ((((pixel < 0) * (cross.z > 0)) ||\
-            ((pixel > 0) * (cross.z < 0)) ||\
-            ((!pixel) * (cross.z)) ||\
-            ((pixel) * (!cross.z))) *\
+    res = res || ((((pixel*cross.z)<=0)) *\
             (fabsf(pixel) <= fabsf(cross.z)));
 
-    res = res || ((((pixel < 0) * (cross.w > 0)) ||\
-            ((pixel > 0) * (cross.w < 0)) ||\
-            ((!pixel) * (cross.w)) ||\
-            ((pixel) * (!cross.w))) *\
+    res = res || ((((pixel*cross.w)<=0)) *\
             (fabsf(pixel) <= fabsf(cross.w)));
 
   }
