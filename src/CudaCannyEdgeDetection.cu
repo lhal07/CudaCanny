@@ -148,13 +148,13 @@ __global__ void kernel_Compute2ndDerivative(float *Lvv, int3 size){
 
     Lx = (-0.5*cross.z) + (0.5*cross.w);
     Ly = (0.5*cross.x) - (0.5*cross.y);
-    Lxx = cross.z - (2*pixel) + cross.w;
+    Lxx = cross.z - (2.0*pixel) + cross.w;
     Lxy = (-0.25*diagonal.x) + (0.25*diagonal.y) + (0.25*diagonal.z) + (-0.25*diagonal.w);
-    Lyy = cross.x -(2*pixel) + cross.y;
+    Lyy = cross.x -(2.0*pixel) + cross.y;
 
   }
 
-  Lvv[pixIdx] = (((Lx*Lx)*Lxx) + (2*Lx*Ly*Lxy) + (Ly*Ly*Lyy))/((Lx*Lx) + (Ly*Ly));
+  Lvv[pixIdx] = (((Lx*Lx)*Lxx) + (2.0*Lx*Ly*Lxy) + (Ly*Ly*Lyy))/((Lx*Lx) + (Ly*Ly));
 
 }
 
@@ -230,123 +230,102 @@ __global__ void hysteresisWrite_kernel(float *output, int3 size){
 
 }
 
-__global__ void kernel_hysteresis_glm1D(float *hys_img, int3 size, int *gridUpdate){
+__global__ void kernel_hysteresis_glm1D(float *hys_img, int3 size, int *have_modified_pixels){
 
   __shared__ float s_slice[SLICE_WIDTH*SLICE_WIDTH];
   __shared__ int modified_block_pixels; /// control inner loop
   __shared__ int modified_image_pixels; /// control outer loop
-  int gU; // grid Update value
-  float edge;
+  int edge;
 
-  int gridWidth = (size.x + SLICE_BLOCK_WIDTH) / SLICE_BLOCK_WIDTH;
-
-
-  // pixel position indexes on slice
+  // pixel position indexes on block
   int2 slice_pos;
   slice_pos.y = threadIdx.x / SLICE_BLOCK_WIDTH;
   slice_pos.x = threadIdx.x - (slice_pos.y * SLICE_BLOCK_WIDTH);
-
-  int sliceIdx = threadIdx.x + SLICE_WIDTH + 1;
 
   // pixel positions indexes on image
   int2 pos;
   pos.x = (slice_pos.x + (blockIdx.x * SLICE_BLOCK_WIDTH)) % size.x;
   pos.y = (((((blockIdx.x * SLICE_BLOCK_WIDTH))) / size.x) * SLICE_BLOCK_WIDTH ) + slice_pos.y;
 
+  int sliceIdx = (slice_pos.y*SLICE_WIDTH) + slice_pos.x  + SLICE_WIDTH + 1;
+
   // pixel position at the hysteresis image
   int pixIdx = pos.y * size.x + pos.x;
-
-  if (!threadIdx.x) gridUpdate[blockIdx.x] = 0;
 
   // load center
   s_slice[sliceIdx] = hys_img[pixIdx];
 
-  do{
-    
-    if (!threadIdx.x) modified_image_pixels = NOT_MODIFIED;
+  if (!threadIdx.x) modified_image_pixels = NOT_MODIFIED;
+  if (!pixIdx) have_modified_pixels[0] = 0;
 
-    /// load top
-    if(!slice_pos.y){
-      if(!slice_pos.x){
-        s_slice[0] = ((pos.x>0)||(pos.y>0)) * hys_img[pixIdx-size.x-1];///<TL
-      }
-      s_slice[slice_pos.x+1] = ((pos.y>0)&&(pos.x<size.x-1)) * hys_img[pixIdx-size.x];
-      if(slice_pos.x == (SLICE_BLOCK_WIDTH)){
-        s_slice[SLICE_WIDTH-1] = ((pos.x<(size.x-1))&&(pos.y>0)) * hys_img[pixIdx-size.x+1];///<TR
-      }
+  /// load top
+  if(!slice_pos.y){
+    if(!slice_pos.x){
+      s_slice[0] = ((pos.x>0)&&(pos.y>0)) * hys_img[pixIdx-size.x-1];///<TL
     }
-    /// load bottom
-    if(slice_pos.y == (SLICE_BLOCK_WIDTH-1)){
-      if(!slice_pos.x){
-        s_slice[SLICE_WIDTH*(SLICE_WIDTH-1)] = ((pos.x>0)&&(pos.y<(size.y-1))) * hys_img[pixIdx+size.x-1];///<BL
-      }
-      s_slice[(SLICE_WIDTH*(SLICE_WIDTH-1))+1+slice_pos.x] = ((pos.x<(size.x-1))&&(pos.y<(size.y-1))) * hys_img[pixIdx+size.x];
-      if(threadIdx.x == (blockDim.x-1)){
-        s_slice[(SLICE_WIDTH*SLICE_WIDTH)-1] = ((pos.x<(size.x-1))&&(pos.y<(size.y-1))) * hys_img[pixIdx+size.x+1];///<BR
-      }
+    s_slice[slice_pos.x+1] = ((pos.y>0)&&(pos.y<size.y-1)) * hys_img[pixIdx-size.x];
+    if(slice_pos.x == (SLICE_BLOCK_WIDTH-1)){
+      s_slice[SLICE_WIDTH-1] = ((pos.x<(size.x-1))&&(pos.y>0)) * hys_img[pixIdx-size.x+1];///<TR
     }
-    /// load left
-    if(!threadIdx.x){
-      s_slice[(slice_pos.y+1)*SLICE_WIDTH] = ((pos.x>0)&&(pos.y<size.y-1)) * hys_img[pixIdx-1];
+  }
+  /// load bottom
+  if(slice_pos.y == (SLICE_BLOCK_WIDTH-1)){
+    if(!slice_pos.x){
+      s_slice[SLICE_WIDTH*(SLICE_WIDTH-1)] = ((pos.x>0)&&(pos.y<(size.y-1))) * hys_img[pixIdx+size.x-1];///<BL
     }
-    /// load right
-    if(threadIdx.x == blockDim.x-1){
-      s_slice[(slice_pos.y+2)*(SLICE_WIDTH-1)] = ((pos.y<(size.y-1))&&(pos.x<(size.x-1))) * hys_img[pixIdx+1];
+    s_slice[(SLICE_WIDTH*(SLICE_WIDTH-1))+1+slice_pos.x] = ((pos.y<(size.y-1))) * hys_img[pixIdx+size.x];
+    if(slice_pos.x == (SLICE_BLOCK_WIDTH-1)){
+      s_slice[(SLICE_WIDTH*SLICE_WIDTH)-1] = ((pos.x<(size.x-1))&&(pos.y<(size.y-1))) * hys_img[pixIdx+size.x+1];///<BR
+    }
+  }
+  /// load left
+  if(!slice_pos.x){
+    s_slice[(slice_pos.y+1)*SLICE_WIDTH] = ((pos.x>0)) * hys_img[pixIdx-1];
+  }
+  /// load right
+  if(slice_pos.x == (SLICE_BLOCK_WIDTH-1)){
+    s_slice[((slice_pos.y+2)*SLICE_WIDTH)-1] = (pos.x<(size.x-1)) * hys_img[pixIdx+1];
+  }
+
+  __syncthreads();
+
+  do{
+
+    if (!threadIdx.x) modified_block_pixels = NOT_MODIFIED;
+
+    __syncthreads();
+
+    if(s_slice[sliceIdx] == POSSIBLE_EDGE){
+
+      /// edge = 1 if at last one pixel's neighbour is a definitive edge 
+      /// and edge = 0 if doesn't
+      edge = (!((s_slice[sliceIdx-SLICE_WIDTH-1] != DEFINITIVE_EDGE) *
+                (s_slice[sliceIdx-SLICE_WIDTH] != DEFINITIVE_EDGE) *
+                (s_slice[sliceIdx-SLICE_WIDTH+1] != DEFINITIVE_EDGE) *
+                (s_slice[sliceIdx-1] != DEFINITIVE_EDGE) *
+                (s_slice[sliceIdx+1] != DEFINITIVE_EDGE) *
+                (s_slice[sliceIdx+SLICE_WIDTH-1] != DEFINITIVE_EDGE) *
+                (s_slice[sliceIdx+SLICE_WIDTH] != DEFINITIVE_EDGE) *
+                (s_slice[sliceIdx+SLICE_WIDTH+1] != DEFINITIVE_EDGE)));
+      if ( (edge)*(!modified_block_pixels)  ) modified_image_pixels = modified_block_pixels = MODIFIED;
+      s_slice[sliceIdx] = POSSIBLE_EDGE + ((edge)*(POSSIBLE_EDGE-1));
+
     }
 
     __syncthreads();
 
-    do{
 
-      if (!threadIdx.x) modified_block_pixels = NOT_MODIFIED;
+  }while(modified_block_pixels);// end inner loop
 
-      if(s_slice[sliceIdx] == POSSIBLE_EDGE){
-
-        /// edge == 1 if at last one pixel's neighbour is a definitive edge 
-        /// and edge == 0 if doesn't
-        edge = (!(s_slice[sliceIdx-SLICE_WIDTH-1] != DEFINITIVE_EDGE) *\
-                 (s_slice[sliceIdx-SLICE_WIDTH] != DEFINITIVE_EDGE) *\
-                 (s_slice[sliceIdx-SLICE_WIDTH+1] != DEFINITIVE_EDGE) *\
-                 (s_slice[sliceIdx-1] != DEFINITIVE_EDGE) *\
-                 (s_slice[sliceIdx+1] != DEFINITIVE_EDGE) *\
-                 (s_slice[sliceIdx+SLICE_WIDTH-1] != DEFINITIVE_EDGE) *\
-                 (s_slice[sliceIdx+SLICE_WIDTH] != DEFINITIVE_EDGE) *\
-                 (s_slice[sliceIdx+SLICE_WIDTH+1] != DEFINITIVE_EDGE));
-        if ( (edge)*(!modified_block_pixels)  ) modified_image_pixels = modified_block_pixels = MODIFIED;
-        s_slice[sliceIdx] = POSSIBLE_EDGE + (edge)*(POSSIBLE_EDGE-1);
-
-      }
-
-      __syncthreads();
-
-
-    }while(modified_block_pixels);// end inner loop
-
-    if (!threadIdx.x) gridUpdate[blockIdx.x]++;
-    gU = gridUpdate[blockIdx.x];
-
-    if (modified_image_pixels) hys_img[pixIdx] = s_slice[sliceIdx];
-
-    // barrier
-    while (! ((blockIdx.x<gridWidth)+\
-             ((((blockIdx.x%gridWidth) == 0)+(gU == gridUpdate[blockIdx.x-gridWidth-1])) *\
-             (gU == gridUpdate[blockIdx.x-gridWidth]) *\
-             (((blockIdx.x%gridWidth)==(gridWidth-1))+(gU == gridUpdate[blockIdx.x-gridWidth+1])))) *\
-             (((blockIdx.x%gridWidth)==0)+(gU == gridUpdate[blockIdx.x-1])) *\
-             (((blockIdx.x%gridWidth)==(gridWidth-1))+(gU == gridUpdate[blockIdx.x-1])) *\
-             ((blockIdx.x>=(gridDim.x-gridWidth))+\
-             ((((blockIdx.x%gridWidth) == 0)+(gU == gridUpdate[blockIdx.x+gridWidth-1])) *\
-             (gU == gridUpdate[blockIdx.x+gridWidth]) *\
-             (((blockIdx.x%gridWidth)==(gridWidth-1))+(gU == gridUpdate[blockIdx.x+gridWidth+1])))) ){
-
-    }
-    
-
-  }while(modified_image_pixels);//end outer loop
+  // Update only the blocks that have modified pixels
+  if (modified_image_pixels) {
+    hys_img[pixIdx] = s_slice[sliceIdx];
+  }
+  if (!threadIdx.x) have_modified_pixels[0] += modified_image_pixels;
 
 }
 
-float * cudaHysteresis(float *d_img, float *d_mag, int width, int height, const unsigned int t1, const unsigned int t2){
+float* cudaHysteresis(float *d_img, float *d_mag, int width, int height, const unsigned int t1, const unsigned int t2){
  
   int3 size;
   size.x = width;
@@ -357,7 +336,6 @@ float * cudaHysteresis(float *d_img, float *d_mag, int width, int height, const 
   dim3 DimBlock(THREADS_PER_BLOCK,1,1);
   dim3 DimGrid(blocksPerGrid,1,1);
 
-  float *d_edges;
   float *d_hys;
   cudaMalloc((void**) &d_hys, (size.z*sizeof(float)));
   CUT_CHECK_ERROR("Memory hysteresis image creation failed");
@@ -378,11 +356,20 @@ float * cudaHysteresis(float *d_img, float *d_mag, int width, int height, const 
   cudaUnbindTexture(mag_texRef);
   CUT_CHECK_ERROR("Memory unbind failed");
 
-  int *gridUpdate;
-  cudaMalloc((void**) &gridUpdate, (blocksPerGrid*sizeof(int)));
+  //??? - do not remove
+  int *tt;
+  cudaMalloc((void**) &tt, (blocksPerGrid*sizeof(int)));
 
-  kernel_hysteresis_glm1D<<<DimGrid,DimBlock>>>(d_hys, size, gridUpdate);
-  CUT_CHECK_ERROR("Hysteresis Kernel failed");
+  // counter of modifications
+  int *modif;
+  cudaMalloc((void**) &modif, (sizeof(int)));
+
+  int cont[1];
+  do{
+    kernel_hysteresis_glm1D<<<DimGrid,DimBlock>>>(d_hys, size, modif);
+    CUT_CHECK_ERROR("Hysteresis Kernel failed");
+    cudaMemcpy(cont,modif,sizeof(int),cudaMemcpyDeviceToHost);
+  }while(cont[0]);
 
   /// bind a texture to the CUDA array
   cudaBindTexture (NULL ,hysTexRef, d_hys);
@@ -400,8 +387,11 @@ float * cudaHysteresis(float *d_img, float *d_mag, int width, int height, const 
   CUT_CHECK_ERROR("Memory unbind failed");
 
   cudaFree(d_hys);
+  cudaFree(modif);
+  cudaFree(tt);
   CUT_CHECK_ERROR("Memory free failed");
   
+  float *d_edges;
   d_edges = d_img;
   return(d_edges);
 
