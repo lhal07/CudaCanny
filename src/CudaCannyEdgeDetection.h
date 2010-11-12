@@ -25,4 +25,4 @@ extern "C"
 float* cuda2ndDerivative(const float *d_input, int width, int height);
 
 extern "C"
-float* cudaHysteresis(float *d_img, float *d_gauss, int width, int height, const unsigned int t1, const unsigned int t2);
+float* cudaHysteresis(float *d_img, float *d_gauss, int width, int height, float t1, float t2);

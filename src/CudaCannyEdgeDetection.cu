@@ -193,7 +193,7 @@ float* cuda2ndDerivative(const float *d_input, int width, int height){
 }
 
 
-__global__ void hysteresisPreparation_kernel(float *hysteresis, int3 size, const unsigned int t1, const unsigned int t2){
+__global__ void hysteresisPreparation_kernel(float *hysteresis, int3 size, float t1, float t2){
 
   ///pixel index of this thread
   int pixIdx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -325,7 +325,7 @@ __global__ void kernel_hysteresis_glm1D(float *hys_img, int3 size, int *have_mod
 
 }
 
-float* cudaHysteresis(float *d_img, float *d_mag, int width, int height, const unsigned int t1, const unsigned int t2){
+float* cudaHysteresis(float *d_img, float *d_mag, int width, int height, float t1, float t2){
  
   int3 size;
   size.x = width;
