@@ -27,12 +27,12 @@ set(CUDA_NVCC_FLAGS
 CUDA_ADD_EXECUTABLE(../bin/cudacanny
   itkCudaCannyEdgeDetectionImageFilter.txx
   itkCudaDiscreteGaussianImageFilter.txx
-  itkCudaSobelEdgeDetectionImageFilter.txx
   itkCudaZeroCrossingImageFilter.txx
+  itkCuda2DSeparableConvolutionImageFilter.txx
   CudaCannyEdgeDetection.cu
   CudaDiscreteGaussian.cu
-  CudaSobelEdgeDetection.cu
   CudaZeroCrossing.cu
+  Cuda2DSeparableConvolution.cu
   cudacanny.cxx
 )
 
