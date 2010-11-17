@@ -1,10 +1,10 @@
 /*=========================================================================
 
 Program:   Insight Segmentation & Registration Toolkit
-Module:    $RCSfile: itkDiscreteGaussianImageFilter.txx,v $
+Module:    $RCSfile: itkCudaDiscreteGaussianImageFilter.txx,v $
 Language:  C++
-Date:      $Date: 2009-07-29 12:44:26 $
-Version:   $Revision: 1.43 $
+Date:      $Date: 2010-11-10 12:44:26 $
+Version:   $Revision: 1.0 $
 
 Copyright (c) Insight Software Consortium. All rights reserved.
 See ITKCopyright.txt or http://www.itk.org/HTML/Copyright.htm for details.
@@ -21,17 +21,6 @@ PURPOSE.  See the above copyright notices for more information.
 
 namespace itk
 {
-template <class TInputImage, class TOutputImage>
-void 
-CudaDiscreteGaussianImageFilter<TInputImage,TOutputImage>
-::GenerateInputRequestedRegion() throw(InvalidRequestedRegionError)
-{
-  // call the superclass' implementation of this method. this should
-  // copy the output requested region to the input requested region
-  Superclass::GenerateInputRequestedRegion();
-  
-}
-
 
 template< class TInputImage, class TOutputImage >
 void
@@ -39,22 +28,24 @@ CudaDiscreteGaussianImageFilter<TInputImage, TOutputImage>
 ::GenerateData()
 {
   typename TInputImage::ConstPointer input = this->GetInput();
-  typename TOutputImage::Pointer output = this->GetOutput();
-  typename TOutputImage::PixelType * ptr;
+  typename TOutputImage::PixelType * mask;
   
-  // Allocate output image object
-  output->SetBufferedRegion(output->GetRequestedRegion());
+  mask = cuda1DGaussianOperator(this->GetMaximumKernelWidth(), (float) this->GetVariance());
 
-  // Get image size
-  typename OutputImageType::SizeType size;
-  size = output->GetLargestPossibleRegion().GetSize();
+  m_CudaConvolutionFilter->SetInput(input);
+  m_CudaConvolutionFilter->SetInputMaskHorizontal(mask, this->GetMaximumKernelWidth());
+  m_CudaConvolutionFilter->SetInputMaskVertical(mask, this->GetMaximumKernelWidth());
+  m_CudaConvolutionFilter->Update();
 
-  // Call cudaGaussian. Defined on CudaDiscreteGaussian.cu
-  ptr = cudaDiscreteGaussian2D(input->GetDevicePointer(), size[0], size[1], (float) this->GetVariance(), this->GetMaximumKernelWidth());
+}
 
-  // Set image pointer to the output image
-  output->GetPixelContainer()->SetDevicePointer(ptr, size[0]*size[1], true);
+template< class TInputImage, class TOutputImage >
+TOutputImage *
+CudaDiscreteGaussianImageFilter<TInputImage, TOutputImage>
+::GetOutput()
+{
 
+  return(m_CudaConvolutionFilter->GetOutput());
 
 }
 

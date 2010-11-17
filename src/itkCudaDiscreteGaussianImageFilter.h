@@ -1,10 +1,10 @@
 /*=========================================================================
 
   Program:   Insight Segmentation & Registration Toolkit
-  Module:    $RCSfile: itkDiscreteGaussianImageFilter.h,v $
+  Module:    $RCSfile: itkCudaDiscreteGaussianImageFilter.h,v $
   Language:  C++
-  Date:      $Date: 2009-04-25 12:27:21 $
-  Version:   $Revision: 1.41 $
+  Date:      $Date: 2010-11-10 12:27:21 $
+  Version:   $Revision: 1.0 $
 
   Copyright (c) Insight Software Consortium. All rights reserved.
   See ITKCopyright.txt or http://www.itk.org/HTML/Copyright.htm for details.
@@ -18,6 +18,7 @@
 #define __itkCudaDiscreteGaussianImageFilter_h
 
 #include "itkImageToImageFilter.h"
+#include "itkCuda2DSeparableConvolutionImageFilter.h"
 #include "itkImage.h"
 
 #include "cuda.h"
@@ -26,29 +27,13 @@
 namespace itk
 {
 /**
- * \class DiscreteGaussianImageFilter
+ * \class CudaDiscreteGaussianImageFilter
  * \brief Blurs an image by separable convolution with discrete gaussian kernels.
  * This filter performs Gaussian blurring by separable convolution of an image
  * and a discrete Gaussian operator (kernel).
  *
- * The Gaussian operator used here was described by Tony Lindeberg (Discrete
- * Scale-Space Theory and the Scale-Space Primal Sketch.  Dissertation. Royal
- * Institute of Technology, Stockholm, Sweden. May 1991.) The Gaussian kernel
- * used here was designed so that smoothing and derivative operations commute
- * after discretization.
- *
- * The variance or standard deviation (sigma) will be evaluated as pixel units
- * if SetUseImageSpacing is off (false) or as physical units if
- * SetUseImageSpacing is on (true, default). The variance can be set
- * independently in each dimension.
- *
- * When the Gaussian kernel is small, this filter tends to run faster than
- * itk::RecursiveGaussianImageFilter.
- * 
- * \sa GaussianOperator
+ * \sa cuda1DGaussianOperator
  * \sa Image
- * \sa Neighborhood
- * \sa NeighborhoodOperator
  * 
  * \ingroup ImageEnhancement 
  * \ingroup ImageFeatureExtraction 
@@ -81,18 +66,16 @@ public:
   typedef typename TOutputImage::InternalPixelType OutputInternalPixelType;
   typedef typename TInputImage::PixelType          InputPixelType;
   typedef typename TInputImage::InternalPixelType  InputInternalPixelType;
+  typedef Image<OutputPixelType,1> MaskImageType;
+
+  TOutputImage * GetOutput();
 
   /** Extract some information from the image types.  Dimensionality
    * of the two images is assumed to be the same. */
   itkStaticConstMacro(ImageDimension, unsigned int,
                       TOutputImage::ImageDimension);
   
-  /** The variance for the discrete Gaussian kernel.  Sets the variance
-   * independently for each dimension, but 
-   * see also SetVariance(const double v). The default is 1.0 in each
-   * dimension. If UseImageSpacing is true, the units are the physical units
-   * of your image.  If UseImageSpacing is false then the units are
-   * pixels. */
+  /** The variance for the discrete Gaussian kernel. */
   itkSetMacro(Variance, float);
   itkGetConstMacro(Variance, const float);
 
@@ -109,14 +92,6 @@ public:
   itkGetConstMacro(FilterDimensionality, unsigned int);
   itkSetMacro(FilterDimensionality, unsigned int);
   
-  /** DiscreteGaussianImageFilter needs a larger input requested region
-   * than the output requested region (larger by the size of the
-   * Gaussian kernel).  As such, DiscreteGaussianImageFilter needs to
-   * provide an implementation for GenerateInputRequestedRegion() in
-   * order to inform the pipeline execution model.
-   * \sa ImageToImageFilter::GenerateInputRequestedRegion() */
-  virtual void GenerateInputRequestedRegion() throw(InvalidRequestedRegionError);
-
 #ifdef ITK_USE_CONCEPT_CHECKING
   /** Begin concept checking */
   itkConceptMacro(OutputHasNumericTraitsCheck,
@@ -130,17 +105,16 @@ protected:
     m_Variance =1.0;
     m_MaximumKernelWidth = 3;
     m_FilterDimensionality = ImageDimension;
+    m_CudaConvolutionFilter = Cuda2DSeparableConvolutionImageFilterType::New();
     }
   virtual ~CudaDiscreteGaussianImageFilter() {}
   void PrintSelf(std::ostream& os, Indent indent) const;
 
-  /** Standard pipeline method. While this class does not implement a
-   * ThreadedGenerateData(), its GenerateData() delegates all
-   * calculations to an NeighborhoodOperatorImageFilter.  Since the
-   * NeighborhoodOperatorImageFilter is multithreaded, this filter is
-   * multithreaded by default. */
+  /** Standard pipeline method. */
   void GenerateData();
 
+  typedef Cuda2DSeparableConvolutionImageFilter<InputImageType, OutputImageType>
+                                                      Cuda2DSeparableConvolutionImageFilterType;
   
 private:
   CudaDiscreteGaussianImageFilter(const Self&); //purposely not implemented
@@ -156,6 +130,8 @@ private:
   /** Number of dimensions to process. Default is all dimensions */
   unsigned int m_FilterDimensionality;
 
+  /** Cuda2DSeparableConvolution to convolve the image  */
+  typename Cuda2DSeparableConvolutionImageFilterType::Pointer m_CudaConvolutionFilter;
 };
   
 } // end namespace itk
