@@ -18,6 +18,7 @@
 #define __itkCuda2DSeparableConvolutionImageFilter_h
 
 #include "itkImageToImageFilter.h"
+#include "itkCudaKernelConfigurator.h"
 
 #include "cuda.h"
 #include "Cuda2DSeparableConvolution.h"
@@ -71,10 +72,13 @@ protected:
 
   void GenerateData();
 
+  typedef CudaKernelConfigurator CudaKernelConfiguratorType;
+  
 private:
   Cuda2DSeparableConvolutionImageFilter( const Self& ); //purposely not implemented
   void operator=( const Self& ); //purposely not implemented
 
+  typename CudaKernelConfiguratorType::Pyyointer m_CudaConf;
 private:
 
   OutputPixelType * m_Mask1;

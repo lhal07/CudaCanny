@@ -8,4 +8,4 @@
 
 
 extern "C"
-float* cuda2DSeparableConvolution(const float *d_img, int width, int height, const float *d_kernelH, int sizeH, const float *d_kernelV, int sizeV);
+float* cuda2DSeparableConvolution(dim3 DimGrid, dim3 DimBlock, const float *d_img, int width, int height, const float *d_kernelH, int sizeH, const float *d_kernelV, int sizeV);

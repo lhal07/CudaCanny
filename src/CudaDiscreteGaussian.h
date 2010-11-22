@@ -7,4 +7,4 @@
 
 
 extern "C"
-float* cuda1DGaussianOperator(unsigned int width, float gaussianVariance);
+float* cuda1DGaussianOperator(dim3 DimGrid, dim3 DimBlock, unsigned int width, float gaussianVariance);

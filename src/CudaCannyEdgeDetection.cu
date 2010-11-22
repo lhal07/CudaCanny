@@ -13,8 +13,6 @@
 
 #include "CudaCannyEdgeDetection.h"
 
-#define THREADS_PER_BLOCK 256
-
 
 /// allocate texture variables
 texture<float, 1, cudaReadModeElementType> texRef;
@@ -72,16 +70,12 @@ __global__ void kernel_Compute2ndDerivativePos(float *Magnitude, int3 size){
 
 }
 
-float* cuda2ndDerivativePos(const float *d_input, const float *d_Lvv, int width, int height){
+float* cuda2ndDerivativePos(dim3 DimGrid, dim3 DimBlock, const float *d_input, const float *d_Lvv, int width, int height){
 
   int3 size;
   size.x = width;
   size.y = height;
   size.z = width*height;
-
-  int blocksPerGrid = ((size.z) + THREADS_PER_BLOCK -1)/THREADS_PER_BLOCK;
-  dim3 DimBlock(THREADS_PER_BLOCK,1,1);
-  dim3 DimGrid(blocksPerGrid,1,1);
 
  /// Allocate output memory to image data
   float * d_mag;
@@ -158,16 +152,12 @@ __global__ void kernel_Compute2ndDerivative(float *Lvv, int3 size){
 
 }
 
-float* cuda2ndDerivative(const float *d_input, int width, int height){
+float* cuda2ndDerivative(dim3 DimGrid, dim3 DimBlock, const float *d_input, int width, int height){
 
   int3 size;
   size.x = width;
   size.y = height;
   size.z = width*height;
-
-  int blocksPerGrid = ((size.z) + THREADS_PER_BLOCK -1)/THREADS_PER_BLOCK;
-  dim3 DimBlock(THREADS_PER_BLOCK,1,1);
-  dim3 DimGrid(blocksPerGrid,1,1);
 
  /// Allocate output memory to image data
   float * d_Lvv;
@@ -325,17 +315,15 @@ __global__ void kernel_hysteresis_glm1D(float *hys_img, int3 size, int *have_mod
 
 }
 
-float* cudaHysteresis(float *d_img, float *d_mag, int width, int height, float t1, float t2){
+float* cudaHysteresis(dim3 DimGrid, dim3 DimBlock, float *d_img, float *d_mag, int width, int height, float t1, float t2){
  
   int3 size;
   size.x = width;
   size.y = height;
   size.z = width*height;
 
-  int blocksPerGrid = (size.z + THREADS_PER_BLOCK -1)/THREADS_PER_BLOCK;
-  dim3 DimBlock(THREADS_PER_BLOCK,1,1);
-  dim3 DimGrid(blocksPerGrid,1,1);
-
+  int blocksPerGrid = DimGrid.x;
+  
   float *d_hys;
   cudaMalloc((void**) &d_hys, (size.z*sizeof(float)));
   CUT_CHECK_ERROR("Memory hysteresis image creation failed");

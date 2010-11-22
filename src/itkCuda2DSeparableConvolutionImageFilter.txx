@@ -21,6 +21,7 @@ PURPOSE.  See the above copyright notices for more information.
 
 #include "itkImageBase.h"
 
+#define THREADS_PER_BLOCK 256 
 
 namespace itk {
 
@@ -28,6 +29,7 @@ template<class TInputImage, class TOutputImage>
 Cuda2DSeparableConvolutionImageFilter<TInputImage, TOutputImage>
 ::Cuda2DSeparableConvolutionImageFilter()
 {
+  m_CudaConf = CudaKernelConfiguratorType::New();
 }
 
 template<class TInputImage, class TOutputImage>
@@ -46,6 +48,8 @@ Cuda2DSeparableConvolutionImageFilter<TInputImage, TOutputImage>
   typename TOutputImage::Pointer output = this->GetOutput();
   typename TOutputImage::PixelType * ptr;
   
+  m_CudaConf->SetBlockDim(THREADS_PER_BLOCK,1,1);
+  m_CudaConf->SetGridDim((this->GetInput()->GetPixelContainer()->Size()+THREADS_PER_BLOCK-1)/THREADS_PER_BLOCK,1,1);
   // Allocate output image object
   output->SetBufferedRegion(output->GetRequestedRegion());
 
@@ -54,7 +58,7 @@ Cuda2DSeparableConvolutionImageFilter<TInputImage, TOutputImage>
   size = output->GetLargestPossibleRegion().GetSize();
 
   // Call cudaGaussian. Defined on CudaDiscreteGaussian.cu
-  ptr = cuda2DSeparableConvolution(input->GetDevicePointer(), size[0], size[1], m_Mask1, m_SizeMask1, m_Mask2, m_SizeMask2);
+  ptr = cuda2DSeparableConvolution(m_CudaConf->GetGridDim(),m_CudaConf->GetBlockDim(),input->GetDevicePointer(), size[0], size[1], m_Mask1, m_SizeMask1, m_Mask2, m_SizeMask2);
 
   // Set image pointer to the output image
   output->GetPixelContainer()->SetDevicePointer(ptr, size[0]*size[1], true);

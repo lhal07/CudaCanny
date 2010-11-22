@@ -13,7 +13,6 @@
 
 #include "Cuda2DSeparableConvolution.h"
 
-#define THREADS_PER_BLOCK 256
 
 /// allocate texture variables
 texture<float, 1, cudaReadModeElementType> texRef;
@@ -74,16 +73,12 @@ __global__ void kernel_1DConvolutionV_texture(float *output, int3 size, short ha
   output[pixIdx] = sum;
 }
 
-float* cuda2DSeparableConvolution(const float *d_img, int width, int height, const float *d_kernelH, int sizeH, const float *d_kernelV, int sizeV){
+float* cuda2DSeparableConvolution(dim3 DimGrid, dim3 DimBlock, const float *d_img, int width, int height, const float *d_kernelH, int sizeH, const float *d_kernelV, int sizeV){
 
   int3 size;
   size.x = width;
   size.y = height;
   size.z = width*height;
-
-  int blocksPerGrid = ((size.z) + THREADS_PER_BLOCK -1)/THREADS_PER_BLOCK;
-  dim3 DimBlock(THREADS_PER_BLOCK,1,1);
-  dim3 DimGrid(blocksPerGrid,1,1);
 
   /// The Convolution Kernel Width must be odd
   if (sizeH < 1) sizeH = 1;

@@ -19,6 +19,7 @@
 
 #include "itkCudaZeroCrossingImageFilter.h"
 
+#define THREADS_PER_BLOCK 256 
 
 namespace itk
 {
@@ -33,6 +34,9 @@ CudaZeroCrossingImageFilter< TInputImage, TOutputImage >
   typename TOutputImage::Pointer output  = this->GetOutput();
   typename TOutputImage::PixelType * tmp;
   
+  m_CudaConf->SetBlockDim(THREADS_PER_BLOCK,1,1);
+  m_CudaConf->SetGridDim((this->GetInput()->GetPixelContainer()->Size()+THREADS_PER_BLOCK-1)/THREADS_PER_BLOCK,1,1);
+
   // Allocate output image object
   output->SetBufferedRegion(output->GetRequestedRegion());
 
@@ -40,7 +44,7 @@ CudaZeroCrossingImageFilter< TInputImage, TOutputImage >
   typename OutputImageType::SizeType size = output->GetLargestPossibleRegion().GetSize();
 
   // Call cudaSobel. Defined on CudaSobelEdgeDetection.cu
-  tmp = cudaZeroCrossing(input->GetDevicePointer(), size[0], size[1]);
+  tmp = cudaZeroCrossing(m_CudaConf->GetGridDim(),m_CudaConf->GetBlockDim(),input->GetDevicePointer(), size[0], size[1]);
 
   // Set image pointer to the output image
   output->GetPixelContainer()->SetDevicePointer(tmp, size[0]*size[1], true);

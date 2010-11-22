@@ -18,6 +18,7 @@
 #define __itkCudaDiscreteGaussianImageFilter_h
 
 #include "itkImageToImageFilter.h"
+#include "itkCudaKernelConfigurator.h"
 #include "itkCuda2DSeparableConvolutionImageFilter.h"
 #include "itkImage.h"
 
@@ -106,6 +107,7 @@ protected:
     m_MaximumKernelWidth = 3;
     m_FilterDimensionality = ImageDimension;
     m_CudaConvolutionFilter = Cuda2DSeparableConvolutionImageFilterType::New();
+    m_CudaConf = CudaKernelConfiguratorType::New();
     }
   virtual ~CudaDiscreteGaussianImageFilter() {}
   void PrintSelf(std::ostream& os, Indent indent) const;
@@ -115,6 +117,7 @@ protected:
 
   typedef Cuda2DSeparableConvolutionImageFilter<InputImageType, OutputImageType>
                                                       Cuda2DSeparableConvolutionImageFilterType;
+  typedef CudaKernelConfigurator CudaKernelConfiguratorType;
   
 private:
   CudaDiscreteGaussianImageFilter(const Self&); //purposely not implemented
@@ -132,6 +135,8 @@ private:
 
   /** Cuda2DSeparableConvolution to convolve the image  */
   typename Cuda2DSeparableConvolutionImageFilterType::Pointer m_CudaConvolutionFilter;
+
+  typename CudaKernelConfiguratorType::Pointer m_CudaConf;
 };
   
 } // end namespace itk

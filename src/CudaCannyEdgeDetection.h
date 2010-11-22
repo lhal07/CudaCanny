@@ -19,10 +19,10 @@
 #define NOT_MODIFIED 0
 
 extern "C"
-float* cuda2ndDerivativePos(const float *d_input, const float *d_Lvv, int width, int height);
+float* cuda2ndDerivativePos(dim3 DimGrid, dim3 DimBlock, const float *d_input, const float *d_Lvv, int width, int height);
 
 extern "C"
-float* cuda2ndDerivative(const float *d_input, int width, int height);
+float* cuda2ndDerivative(dim3 DimGrid, dim3 DimBlock, const float *d_input, int width, int height);
 
 extern "C"
-float* cudaHysteresis(float *d_img, float *d_gauss, int width, int height, float t1, float t2);
+float* cudaHysteresis(dim3 DimGrid, dim3 DimBlock, float *d_img, float *d_gauss, int width, int height, float t1, float t2);

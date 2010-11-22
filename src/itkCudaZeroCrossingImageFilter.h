@@ -19,6 +19,7 @@
 
 #include "itkImageToImageFilter.h"
 #include "itkImage.h"
+#include "itkCudaKernelConfigurator.h"
 
 #include "cuda.h"
 #include "CudaZeroCrossing.h"
@@ -115,6 +116,7 @@ protected:
     {
     m_ForegroundValue = NumericTraits<OutputImagePixelType>::One;
     m_BackgroundValue = NumericTraits<OutputImagePixelType>::Zero;
+    m_CudaConf = CudaKernelConfiguratorType::New();
     }
   ~CudaZeroCrossingImageFilter(){}
   void PrintSelf(std::ostream& os, Indent indent) const;
@@ -124,6 +126,13 @@ protected:
   OutputImagePixelType m_ForegroundValue;
   
   void GenerateData();
+  
+  typedef CudaKernelConfigurator CudaKernelConfiguratorType;
+
+private:
+
+  typename CudaKernelConfiguratorType::Pointer m_CudaConf;
+
 };
   
 } //end of namespace itk

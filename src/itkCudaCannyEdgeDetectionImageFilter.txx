@@ -18,6 +18,8 @@
 #define __itkCudaCannyEdgeDetectionImageFilter_txx
 #include "itkCudaCannyEdgeDetectionImageFilter.h"
 
+#define THREADS_PER_BLOCK 256 
+
 namespace itk
 {
   
@@ -31,6 +33,7 @@ CudaCannyEdgeDetectionImageFilter()
 
   m_CudaGaussianFilter = CudaGaussianImageFilterType::New();
   m_CudaZeroCrossingFilter = CudaZeroCrossingFilterType::New();
+  m_CudaConf = CudaKernelConfiguratorType::New();
 
   m_UpdateBuffer1  = OutputImageType::New();
 
@@ -91,9 +94,9 @@ CudaCannyEdgeDetectionImageFilter<TInputImage,TOutputImage>
   typename OutputImageType::SizeType size = output->GetLargestPossibleRegion().GetSize();
 
   // Call CudaNMS. Defined on CudaCannyEdgeDetection.cu
-  deriv = cuda2ndDerivative(input->GetDevicePointer(),size[0],size[1]);
+  deriv = cuda2ndDerivative(m_CudaConf->GetGridDim(),m_CudaConf->GetBlockDim(),input->GetDevicePointer(),size[0],size[1]);
 
-  mag = cuda2ndDerivativePos(input->GetDevicePointer(),deriv,size[0],size[1]);
+  mag = cuda2ndDerivativePos(m_CudaConf->GetGridDim(),m_CudaConf->GetBlockDim(),input->GetDevicePointer(),deriv,size[0],size[1]);
 
   // Set NMS pointer on the output image
   output->GetPixelContainer()->SetDevicePointer(deriv, size[0]*size[1], true);
@@ -119,7 +122,7 @@ CudaCannyEdgeDetectionImageFilter<TInputImage,TOutputImage>
   // Call CudaHysteresis. Defined on CudaCannyEdgeDetection.cu
   // This Multiplyes the Zero crossings of the Second derivative with the
   // magnitude gradients of the image.
-  edges = cudaHysteresis(deriv->GetDevicePointer(), mag->GetDevicePointer(), size[0], size[1], this->GetLowerThreshold(), this->GetUpperThreshold());
+  edges = cudaHysteresis(m_CudaConf->GetGridDim(),m_CudaConf->GetBlockDim(),deriv->GetDevicePointer(), mag->GetDevicePointer(), size[0], size[1], this->GetLowerThreshold(), this->GetUpperThreshold());
 
   // Set Canny output
   output->GetPixelContainer()->SetDevicePointer(edges, size[0]*size[1], true);
@@ -142,6 +145,9 @@ CudaCannyEdgeDetectionImageFilter< TInputImage, TOutputImage >
   m_UpdateBuffer1->Allocate();  
   output->SetBufferedRegion(output->GetRequestedRegion());
   
+  m_CudaConf->SetBlockDim(THREADS_PER_BLOCK,1,1);
+  m_CudaConf->SetGridDim((this->GetInput()->GetPixelContainer()->Size()+THREADS_PER_BLOCK-1)/THREADS_PER_BLOCK,1,1);
+
   // 1.Apply the Gaussian Filter to the input image.-------
   m_CudaGaussianFilter->SetInput(input);
   

@@ -6,5 +6,5 @@
  */
 
 extern "C"
-float* cudaZeroCrossing(float *d_input, int width, int height);
+float* cudaZeroCrossing(dim3 DimGrid, dim3 DimBlock, float *d_input, int width, int height);
 

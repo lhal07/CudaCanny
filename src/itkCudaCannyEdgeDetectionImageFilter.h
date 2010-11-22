@@ -19,6 +19,7 @@
 
 #include "itkImageToImageFilter.h"
 #include "itkImage.h"
+#include "itkCudaKernelConfigurator.h"
 #include "itkCudaDiscreteGaussianImageFilter.h"
 #include "itkCudaZeroCrossingImageFilter.h"
 
@@ -147,6 +148,9 @@ protected:
 
   typedef CudaZeroCrossingImageFilter<OutputImageType, OutputImageType>
                                                       CudaZeroCrossingFilterType;
+
+  typedef CudaKernelConfigurator CudaKernelConfiguratorType;
+
 private:
   virtual ~CudaCannyEdgeDetectionImageFilter(){};
 
@@ -171,6 +175,8 @@ private:
   /** CudaZeroCrossing filter to detect zero crossings on the 2nd derivative
    * image */
   typename CudaZeroCrossingFilterType::Pointer m_CudaZeroCrossingFilter;
+
+  typename CudaKernelConfiguratorType::Pointer m_CudaConf;
 };
 
 } //end of namespace itk

@@ -19,6 +19,8 @@ PURPOSE.  See the above copyright notices for more information.
 
 #include "itkCudaDiscreteGaussianImageFilter.h"
 
+#define THREADS_PER_BLOCK 256 
+
 namespace itk
 {
 
@@ -30,7 +32,10 @@ CudaDiscreteGaussianImageFilter<TInputImage, TOutputImage>
   typename TInputImage::ConstPointer input = this->GetInput();
   typename TOutputImage::PixelType * mask;
   
-  mask = cuda1DGaussianOperator(this->GetMaximumKernelWidth(), (float) this->GetVariance());
+  m_CudaConf->SetBlockDim(this->GetMaximumKernelWidth(),1,1);
+  m_CudaConf->SetGridDim(1,1,1);
+
+  mask = cuda1DGaussianOperator(m_CudaConf->GetGridDim(),m_CudaConf->GetBlockDim(),this->GetMaximumKernelWidth(),(float) this->GetVariance());
 
   m_CudaConvolutionFilter->SetInput(input);
   m_CudaConvolutionFilter->SetInputMaskHorizontal(mask, this->GetMaximumKernelWidth());

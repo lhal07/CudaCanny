@@ -13,8 +13,6 @@
 
 #include "CudaZeroCrossing.h"
 
-#define THREADS_PER_BLOCK 256
-
 
 /// allocate texture variables
 texture<float, 1, cudaReadModeElementType> texRef;
@@ -61,16 +59,12 @@ __global__ void kernel_zerocrossing(float* image, int3 size){
   
 }
 
-float* cudaZeroCrossing(float *d_input, int width, int height){
+float* cudaZeroCrossing(dim3 DimGrid, dim3 DimBlock, float *d_input, int width, int height){
 
   int3 size;
   size.x = width;
   size.y = height;
   size.z = width*height;
-
-  int blocksPerGrid = ((size.z) + THREADS_PER_BLOCK -1)/THREADS_PER_BLOCK;
-  dim3 DimBlock(THREADS_PER_BLOCK,1,1);
-  dim3 DimGrid(blocksPerGrid,1,1);
 
   float *d_img;
   cudaMalloc((void**) &d_img, (size.z*sizeof(float)));

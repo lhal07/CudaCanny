@@ -13,8 +13,6 @@
 
 #include "CudaDiscreteGaussian.h"
 
-#define THREADS_PER_BLOCK 256
-
 /// allocate texture variables
 texture<float, 1, cudaReadModeElementType> texRef;
 texture<float, 1, cudaReadModeElementType> gaussTexRef;
@@ -48,7 +46,7 @@ __global__ void calculateGaussianKernel(float *gaussKernel, const float sigma, i
 
 }
 
-float* cuda1DGaussianOperator(unsigned int width, float gaussianVariance){
+float* cuda1DGaussianOperator(dim3 DimGrid, dim3 DimBlock, unsigned int width, float gaussianVariance){
 
   /// The Gaussian Kernel Width must be odd
   if (width < 1) width = 1;
@@ -61,7 +59,7 @@ float* cuda1DGaussianOperator(unsigned int width, float gaussianVariance){
   cudaMalloc((void**)&cudaGaussKernel,kernelSize);
 
   /// Calculate gaussian kernel
-  calculateGaussianKernel<<<1,width,kernelSize>>>(cudaGaussKernel, gaussianVariance, halfWidth);
+  calculateGaussianKernel<<<DimGrid,DimBlock,kernelSize>>>(cudaGaussKernel, gaussianVariance, halfWidth);
   
   return(cudaGaussKernel);
 }
