@@ -25,7 +25,7 @@ set(CUDA_NVCC_FLAGS
 )
 
 CUDA_ADD_EXECUTABLE(../bin/cudacanny
-  itkCudaKernelConfigurator.txx
+  itkCudaInterface.txx
   itkCudaCannyEdgeDetectionImageFilter.txx
   itkCudaDiscreteGaussianImageFilter.txx
   itkCudaZeroCrossingImageFilter.txx

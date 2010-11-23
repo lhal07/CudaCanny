@@ -33,7 +33,7 @@ CudaCannyEdgeDetectionImageFilter()
 
   m_CudaGaussianFilter = CudaGaussianImageFilterType::New();
   m_CudaZeroCrossingFilter = CudaZeroCrossingFilterType::New();
-  m_CudaConf = CudaKernelConfiguratorType::New();
+  m_CudaConf = CudaInterfaceType::New();
 
   m_UpdateBuffer1  = OutputImageType::New();
 

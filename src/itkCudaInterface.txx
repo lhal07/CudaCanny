@@ -1,7 +1,7 @@
 /*=========================================================================
 
 Program:   Insight Segmentation & Registration Toolkit
-Module:    $RCSfile: itkCudaKernelConfigurator.txx,v $
+Module:    $RCSfile: itkCudaInterface.txx,v $
 Language:  C++
 Date:      $Date: 2010-11-19 19:10:47 $
 Version:   $Revision: 0.1 $
@@ -17,10 +17,10 @@ the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 PURPOSE.  See the above copyright notices for more information.
 
 =========================================================================*/
-#ifndef __itkCudaKernelConfigurator_txx
-#define __itkCudaKernelConfigurator_txx
+#ifndef __itkCudaInterface_txx
+#define __itkCudaInterface_txx
 
-#include "itkCudaKernelConfigurator.h"
+#include "itkCudaInterface.h"
 #include <cstring>
 #include <stdlib.h>
 #include <string.h>
@@ -28,8 +28,8 @@ PURPOSE.  See the above copyright notices for more information.
 namespace itk
 {
 
-      CudaKernelConfigurator
-      ::CudaKernelConfigurator()
+      CudaInterface
+      ::CudaInterface()
       {
         m_BlockDim.x = 1;
         m_BlockDim.y = 1;
@@ -42,7 +42,7 @@ namespace itk
 
 
       void 
-      CudaKernelConfigurator
+      CudaInterface
       ::PrintSelf(std::ostream& os, Indent indent) const
       {
          os << indent << "BlockDim.x: " << m_BlockDim.x << std::endl;

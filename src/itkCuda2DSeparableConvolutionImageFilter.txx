@@ -29,7 +29,7 @@ template<class TInputImage, class TOutputImage>
 Cuda2DSeparableConvolutionImageFilter<TInputImage, TOutputImage>
 ::Cuda2DSeparableConvolutionImageFilter()
 {
-  m_CudaConf = CudaKernelConfiguratorType::New();
+  m_CudaConf = CudaInterfaceType::New();
 }
 
 template<class TInputImage, class TOutputImage>

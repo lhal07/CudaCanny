@@ -1,7 +1,7 @@
 /*=========================================================================
 
 Program:   Insight Segmentation & Registration Toolkit
-Module:    $RCSfile: itkCudaKernelConfigurator.h,v $
+Module:    $RCSfile: itkCudaInterface.h,v $
 Language:  C++
 Date:      $Date: 2010-11-19 12:24:09 $
 Version:   $Revision: 0.1 $
@@ -14,8 +14,8 @@ the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 PURPOSE.  See the above copyright notices for more information.
 
 =========================================================================*/
-#ifndef __itkCudaKernelConfigurator_h
-#define __itkCudaKernelConfigurator_h
+#ifndef __itkCudaInterface_h
+#define __itkCudaInterface_h
 
 #include <cuda.h>
 #include <cutil_inline.h>
@@ -24,24 +24,18 @@ PURPOSE.  See the above copyright notices for more information.
 namespace itk
 {
 
-   /** \class ImportImageContainer
-    * Defines an itk::Image front-end to a standard C-array. This container
-    * conforms to the ImageContainerInterface. This is a full-fleged Object,
-    * so there is modification time, debug, and reference count information.
-    */
-
-    class ITK_EXPORT CudaKernelConfigurator :
+    class ITK_EXPORT CudaInterface :
       public Object
    {
       public:
          /** Standard class typedefs. */
-         typedef CudaKernelConfigurator    Self;
+         typedef CudaInterface    Self;
          typedef Object                    Superclass;
          typedef SmartPointer<Self>        Pointer;
          typedef SmartPointer<const Self>  ConstPointer;
 
          /** Run-time type information (and related methods). */
-         itkTypeMacro(CudaKernelConfigurator,Object);
+         itkTypeMacro(CudaInterface,Object);
 
          /** Method for creation through the object factory. */
          itkNewMacro(Self);
@@ -74,8 +68,8 @@ namespace itk
 
 
       protected:
-         CudaKernelConfigurator();
-         virtual ~CudaKernelConfigurator(){};
+         CudaInterface();
+         virtual ~CudaInterface(){};
 
          /** PrintSelf routine. Normally this is a protected internal method. It is
           * made public here so that Image can call this method.  Users should not
@@ -83,7 +77,7 @@ namespace itk
          void PrintSelf(std::ostream& os, Indent indent) const;
 
       private:
-         CudaKernelConfigurator(const Self&); //purposely not implemented
+         CudaInterface(const Self&); //purposely not implemented
 
          dim3 m_BlockDim;
          dim3 m_GridDim;
@@ -92,17 +86,17 @@ namespace itk
 } // end namespace itk
 
 // Define instantiation macro for this template.
-#define ITK_TEMPLATE_CudaKernelConfigurator(_, EXPORT, x, y) namespace itk { \
-   _(2(class EXPORT CudaKernelConfigurator< ITK_TEMPLATE_2 x >)) \
-   namespace Templates { typedef CudaKernelConfigurator<ITK_TEMPLATE_2 x > CudaKernelConfigurator##y; } \
+#define ITK_TEMPLATE_CudaInterface(_, EXPORT, x, y) namespace itk { \
+   _(2(class EXPORT CudaInterface< ITK_TEMPLATE_2 x >)) \
+   namespace Templates { typedef CudaInterface<ITK_TEMPLATE_2 x > CudaInterface##y; } \
 }
 
 #if ITK_TEMPLATE_EXPLICIT
-# include "Templates/itkCudaKernelConfigurator+-.h"
+# include "Templates/itkCudaInterface+-.h"
 #endif
 
 #if ITK_TEMPLATE_TXX
-# include "itkCudaKernelConfigurator.txx"
+# include "itkCudaInterface.txx"
 #endif
 
 #endif
