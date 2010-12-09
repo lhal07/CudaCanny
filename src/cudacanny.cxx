@@ -48,9 +48,9 @@ typedef itk::RescaleIntensityImageFilter< ImageType, ucharImageType > RescaleFil
 int main (int argc, char** argv){
 
   // Verify the number of parameters in the command line
-  if( argc < 7 ){
+  if( argc < 6 ){
     std::cerr << "Usage: " << std::endl;
-    std::cerr << argv[0] << " <inputImg> <outputImg> <sigma> <maxKernelWidth> <TH high> <TH low>" << std::endl;
+    std::cerr << argv[0] << " <inputImg> <outputImg> <sigma> <TH high> <TH low>" << std::endl;
     return EXIT_FAILURE;
   }
 
@@ -59,9 +59,8 @@ int main (int argc, char** argv){
 
   // Read parameters
   const float gaussianVariance = atof( argv[3] );
-  const unsigned int maxKernelWidth = atoi( argv[4] );
-  const unsigned int t2 = atoi( argv[5] );
-  const unsigned int t1 = atoi( argv[6] );
+  const float t2 = atoi( argv[4] );
+  const float t1 = atoi( argv[5] );
 
   // Input image
   ReaderType::Pointer reader = ReaderType::New();
@@ -86,7 +85,6 @@ int main (int argc, char** argv){
   canny->SetVariance(gaussianVariance);
   canny->SetUpperThreshold(t2);
   canny->SetLowerThreshold(t1);
-  canny->SetMaximumKernelWidth(maxKernelWidth);
 
   gettimeofday(&tv1,NULL);
 

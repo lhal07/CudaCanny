@@ -20,6 +20,7 @@
 #include "itkImageToImageFilter.h"
 #include "itkCudaInterface.h"
 #include "itkCuda2DSeparableConvolutionImageFilter.h"
+#include "itkGaussianOperator.h"
 #include "itkImage.h"
 
 #include "cuda.h"
@@ -76,9 +77,24 @@ public:
   itkStaticConstMacro(ImageDimension, unsigned int,
                       TOutputImage::ImageDimension);
   
-  /** The variance for the discrete Gaussian kernel. */
-  itkSetMacro(Variance, float);
-  itkGetConstMacro(Variance, const float);
+  /** Typedef of double containers */
+  typedef FixedArray<double, itkGetStaticConstMacro(ImageDimension)> ArrayType;
+
+  /** The variance for the discrete Gaussian kernel.  Sets the variance
+   * independently for each dimension, but 
+   * see also SetVariance(const double v). The default is 0.0 in each
+   * dimension. If UseImageSpacing is true, the units are the physical units
+   * of your image.  If UseImageSpacing is false then the units are
+   * pixels. */
+  itkSetMacro(Variance, ArrayType);
+  itkGetConstMacro(Variance, const ArrayType);
+
+  /** The algorithm will size the discrete kernel so that the error
+   * resulting from truncation of the kernel is no greater than
+   * MaximumError. The default is 0.01 in each dimension. */
+  itkSetMacro(MaximumError, ArrayType);
+  itkGetConstMacro(MaximumError, const ArrayType);
+
 
   /** Set the kernel to be no wider than MaximumKernelWidth pixels,
    *  even if MaximumError demands it. The default is 3 pixels. */
@@ -92,7 +108,75 @@ public:
    * FilterDimensionality to 2. */
   itkGetConstMacro(FilterDimensionality, unsigned int);
   itkSetMacro(FilterDimensionality, unsigned int);
+
+  /** Convenience Set methods for setting all dimensional parameters
+   *  to the same values. */
+  void SetVariance (const typename ArrayType::ValueType v)
+    {
+    m_Variance.Fill(v);
+    }
+
+  void SetMaximumError (const typename ArrayType::ValueType v)
+    {
+    m_MaximumError.Fill(v);
+    }
+
+  void SetVariance (const double *v)
+    {
+    ArrayType dv;
+    for (unsigned int i = 0; i < ImageDimension; i++)
+      {
+      dv[i] = v[i];
+      }
+    this->SetVariance(dv);
+    }
+
+  void SetVariance (const float *v)
+    {
+    ArrayType dv;
+    for (unsigned int i = 0; i < ImageDimension; i++)
+      {
+      dv[i] = v[i];
+      }
+    this->SetVariance(dv);
+    }
+
+  void SetMaximumError (const double *v)
+    {
+    ArrayType dv;
+    for (unsigned int i = 0; i < ImageDimension; i++)
+      {
+      dv[i] = v[i];
+      }
+    this->SetMaximumError(dv);
+    }
+
+  void SetMaximumError (const float *v)
+    {
+    ArrayType dv;
+    for (unsigned int i = 0; i < ImageDimension; i++)
+      {
+      dv[i] = v[i];
+      }
+    this->SetMaximumError(dv);
+    }
+
+  /** Use the image spacing information in calculations. Use this option if you
+   *  want to specify Gaussian variance in real world units.  Default is
+   *   ImageSpacingOn. */
+  void SetUseImageSpacingOn()
+    { this->SetUseImageSpacing(true); }
   
+  /** Ignore the image spacing. Use this option if you want to specify Gaussian
+      variance in pixels.  Default is ImageSpacingOn. */
+  void SetUseImageSpacingOff()
+    { this->SetUseImageSpacing(false); }
+  
+  /** Set/Get whether or not the filter will use the spacing of the input
+      image in its calculations */
+  itkSetMacro(UseImageSpacing, bool);
+  itkGetConstMacro(UseImageSpacing, bool);
+
 #ifdef ITK_USE_CONCEPT_CHECKING
   /** Begin concept checking */
   itkConceptMacro(OutputHasNumericTraitsCheck,
@@ -103,8 +187,10 @@ public:
 protected:
   CudaDiscreteGaussianImageFilter()
     {
-    m_Variance =1.0;
-    m_MaximumKernelWidth = 3;
+    m_Variance.Fill(0.0);
+    m_MaximumError.Fill(0.01);
+    m_MaximumKernelWidth = 32;
+    m_UseImageSpacing = false;
     m_FilterDimensionality = ImageDimension;
     m_CudaConvolutionFilter = Cuda2DSeparableConvolutionImageFilterType::New();
     m_CudaConf = CudaInterfaceType::New();
@@ -124,7 +210,12 @@ private:
   void operator=(const Self&); //purposely not implemented
 
   /** The variance of the gaussian blurring kernel in each dimensional direction. */
-  float m_Variance;
+  ArrayType m_Variance;
+
+  /** The maximum error of the gaussian blurring kernel in each dimensional
+   * direction. For definition of maximum error, see GaussianOperator.
+   * \sa GaussianOperator */
+  ArrayType m_MaximumError;
 
   /** Maximum allowed kernel width for any dimension of the discrete Gaussian
       approximation */
@@ -133,10 +224,15 @@ private:
   /** Number of dimensions to process. Default is all dimensions */
   unsigned int m_FilterDimensionality;
 
+  /** Flag to indicate whether to use image spacing */
+  bool m_UseImageSpacing;
+
   /** Cuda2DSeparableConvolution to convolve the image  */
   typename Cuda2DSeparableConvolutionImageFilterType::Pointer m_CudaConvolutionFilter;
 
   typename CudaInterfaceType::Pointer m_CudaConf;
+  
+  GaussianOperator<OutputPixelType, ImageDimension> oper;
 };
   
 } // end namespace itk

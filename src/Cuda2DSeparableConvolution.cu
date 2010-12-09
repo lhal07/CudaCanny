@@ -80,13 +80,8 @@ float* cuda2DSeparableConvolution(dim3 DimGrid, dim3 DimBlock, const float *d_im
   size.y = height;
   size.z = width*height;
 
-  /// The Convolution Kernel Width must be odd
-  if (sizeH < 1) sizeH = 1;
-  if (sizeH%2 == 0) sizeH--;
   short halfKernelWidthH = sizeH >> 1;
   int kernelSizeH = sizeH*sizeof(float);
-  if (sizeV < 1) sizeV = 1;
-  if (sizeV%2 == 0) sizeV--;
   short halfKernelWidthV = sizeV >> 1;
   int kernelSizeV = sizeV*sizeof(float);
 

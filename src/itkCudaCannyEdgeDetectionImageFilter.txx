@@ -42,7 +42,7 @@ CudaCannyEdgeDetectionImageFilter()
 template <class TInputImage, class TOutputImage>
 void 
 CudaCannyEdgeDetectionImageFilter<TInputImage,TOutputImage>
-::SetVariance(float v)
+::SetVariance(const typename ArrayType::ValueType v)
 {
   // call the class' implementation of this method
   m_CudaGaussianFilter->SetVariance(v);
@@ -50,31 +50,13 @@ CudaCannyEdgeDetectionImageFilter<TInputImage,TOutputImage>
 }
 
 template <class TInputImage, class TOutputImage>
-const float 
-CudaCannyEdgeDetectionImageFilter<TInputImage,TOutputImage>
-::GetVariance()
-{
-  // call the class' implementation of this method
-  return m_CudaGaussianFilter->GetVariance();
-}
-
-template <class TInputImage, class TOutputImage>
 void 
 CudaCannyEdgeDetectionImageFilter<TInputImage,TOutputImage>
-::SetMaximumKernelWidth(unsigned int k)
+::SetMaximumError(const typename ArrayType::ValueType v)
 {
   // call the class' implementation of this method
-  m_CudaGaussianFilter->SetMaximumKernelWidth(k);
+  m_CudaGaussianFilter->SetMaximumError(v);
   return;
-}
-
-template <class TInputImage, class TOutputImage>
-const unsigned int 
-CudaCannyEdgeDetectionImageFilter<TInputImage,TOutputImage>
-::GetMaximumKernelWidth()
-{
-  // call the class' implementation of this method
-  return m_CudaGaussianFilter->GetMaximumKernelWidth();
 }
 
 template <class TInputImage, class TOutputImage>

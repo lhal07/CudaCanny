@@ -47,9 +47,12 @@ Cuda2DSeparableConvolutionImageFilter<TInputImage, TOutputImage>
   typename TInputImage::ConstPointer input = this->GetInput();
   typename TOutputImage::Pointer output = this->GetOutput();
   typename TOutputImage::PixelType * ptr;
+  typename TOutputImage::PixelType * d_Mask1;
+  typename TOutputImage::PixelType * d_Mask2;
   
   m_CudaConf->SetBlockDim(THREADS_PER_BLOCK,1,1);
   m_CudaConf->SetGridDim((this->GetInput()->GetPixelContainer()->Size()+THREADS_PER_BLOCK-1)/THREADS_PER_BLOCK,1,1);
+
   // Allocate output image object
   output->SetBufferedRegion(output->GetRequestedRegion());
 
@@ -57,12 +60,22 @@ Cuda2DSeparableConvolutionImageFilter<TInputImage, TOutputImage>
   typename OutputImageType::SizeType size;
   size = output->GetLargestPossibleRegion().GetSize();
 
+  // Copy the masks to the GPU memory. As they aren't image objects, this is not
+  // done by CITK
+  cudaMalloc((void**) &d_Mask1, (sizeof(typename TOutputImage::PixelType)*m_SizeMask1));
+  cudaMalloc((void**) &d_Mask2, (sizeof(typename TOutputImage::PixelType)*m_SizeMask2));
+  cudaMemcpy(d_Mask1, m_Mask1, (sizeof(typename TOutputImage::PixelType)*m_SizeMask1), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_Mask2, m_Mask2, (sizeof(typename TOutputImage::PixelType)*m_SizeMask2), cudaMemcpyHostToDevice);
+
   // Call cudaGaussian. Defined on CudaDiscreteGaussian.cu
-  ptr = cuda2DSeparableConvolution(m_CudaConf->GetGridDim(),m_CudaConf->GetBlockDim(),input->GetDevicePointer(), size[0], size[1], m_Mask1, m_SizeMask1, m_Mask2, m_SizeMask2);
+  ptr = cuda2DSeparableConvolution(m_CudaConf->GetGridDim(),m_CudaConf->GetBlockDim(),input->GetDevicePointer(), size[0], size[1], d_Mask1, m_SizeMask1, d_Mask2, m_SizeMask2);
 
   // Set image pointer to the output image
   output->GetPixelContainer()->SetDevicePointer(ptr, size[0]*size[1], true);
 
+  cudaFree(d_Mask1);
+  cudaFree(d_Mask2);
+  
 }
 
 
@@ -74,6 +87,7 @@ void
 Cuda2DSeparableConvolutionImageFilter<TInputImage,TOutputImage>
 ::SetInputMaskHorizontal( OutputPixelType * input, unsigned int size )
 {
+
   m_Mask1 = input;
   m_SizeMask1 = size;
 }

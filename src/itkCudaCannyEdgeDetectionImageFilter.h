@@ -63,6 +63,9 @@ namespace itk
  * the same as the data type of the output image. Any values below the
  * Threshold level will be replaced with the OutsideValue parameter value, whose
  * default is zero.
+
+pliniodearruda Plínio de Arruda 50 
+
  */
 template<class TInputImage, class TOutputImage>
 class ITK_EXPORT CudaCannyEdgeDetectionImageFilter
@@ -100,20 +103,17 @@ public:
                       TInputImage::ImageDimension);
   itkStaticConstMacro(OutputImageDimension, unsigned int,
                       TOutputImage::ImageDimension);
-  
-  /** Standard get/set macros for filter parameters. */
+ 
+   /** Typedef of double containers */
+  typedef FixedArray<double, itkGetStaticConstMacro(ImageDimension)> ArrayType;
 
-  /** Set/Get the Variance parameter used by the Gaussian smoothing
+  /** Set the Variance parameter used by the Gaussian smoothing
       filter in this algorithm */
-  virtual void SetVariance(float);
-  virtual const float GetVariance();
+  virtual void SetVariance(const typename ArrayType::ValueType);
 
-  /** Sets a limit for growth of the kernel.  Small maximum error values with
-   *  large variances will yield very large kernel sizes.  This value can be
-   *  used to truncate a kernel in such instances.  A warning will be given on
-   *  truncation of the kernel. */
-  virtual void SetMaximumKernelWidth(unsigned int);
-  virtual const unsigned int GetMaximumKernelWidth();
+ /** Set the MaximumError paramter used by the Gaussian smoothing filter
+      in this algorithm */
+  virtual void SetMaximumError(const typename ArrayType::ValueType);
 
   ///* Set the Threshold value for detected edges. */
   itkSetMacro(UpperThreshold, OutputImagePixelType );
