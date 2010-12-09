@@ -23,17 +23,13 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <cuda.h>
 
 #include "itkImage.h"
 #include "itkImageFileReader.h"
 #include "itkImageFileWriter.h"
 #include "itkRescaleIntensityImageFilter.h"
 #include "itkCudaCannyEdgeDetectionImageFilter.h"
-
-// For testing
-#include <time.h>
-#include <sys/time.h>
-#include <cuda.h>
 
 typedef unsigned char                                          ucharPixelType;
 typedef float                                                       PixelType;
@@ -79,6 +75,9 @@ int main (int argc, char** argv){
   cutStopTimer( WarmupTimer );
   printf("Warmup time = %f ms\n",cutGetTimerValue( WarmupTimer ));
 
+  unsigned int CannyTimer = 0;
+  cutCreateTimer( &CannyTimer );
+
   // Apply canny operator
   CannyFilter::Pointer canny = CannyFilter::New();
   canny->SetInput(reader->GetOutput());
@@ -86,12 +85,12 @@ int main (int argc, char** argv){
   canny->SetUpperThreshold(t2);
   canny->SetLowerThreshold(t1);
 
-  gettimeofday(&tv1,NULL);
+  cutStartTimer( CannyTimer );
 
   canny->Update();
 
-  gettimeofday(&tv2,NULL);
- 
+  cutStopTimer( CannyTimer );
+
   // Rescale image to uchar. PNG does only supports uchar ou ushort
   RescaleFilter::Pointer rescale = RescaleFilter::New();
   rescale->SetOutputMinimum(   0 );
@@ -104,10 +103,7 @@ int main (int argc, char** argv){
   writer->SetInput( rescale->GetOutput() );
   writer->Update();
 
-  if(tv1.tv_usec > tv2.tv_usec)
-    time = 1000000;
-
-  printf("cudaCanny Time: %f ms\n",((tv2.tv_sec-tv1.tv_sec)*1000+(float)(time+tv2.tv_usec-tv1.tv_usec)/1000));
+  printf("cudaCanny time: %f ms\n",cutGetTimerValue( CannyTimer ));
   
   return EXIT_SUCCESS;
 }
