@@ -27,33 +27,29 @@ __global__ void kernel_zerocrossing(float* image, int3 size){
   float res = 0;
 
   int pixIdx = blockDim.x * blockIdx.x + threadIdx.x;
+  pixel = tex1Dfetch(texRef,pixIdx);
 
   ///output pixel index
   int2 pos;
   pos.y = __fdividef(pixIdx,size.x);
   pos.x = pixIdx-(pos.y*size.x);
 
-  if ((pos.x>0) && (pos.x<((size.x-1))) && (pos.y>0) && (pos.y<((size.y-1)))){
+  cross.x = tex1Dfetch(texRef,pixIdx-(pos.x>0));
+  cross.y = tex1Dfetch(texRef,pixIdx-(size.x*(pos.y>0)));
+  cross.z = tex1Dfetch(texRef,pixIdx+(pos.x<(size.x-1)));
+  cross.w = tex1Dfetch(texRef,pixIdx+(size.x*(pos.y<(size.y-1))));
 
-    pixel = tex1Dfetch(texRef,pixIdx);
-    cross.x = tex1Dfetch(texRef,pixIdx-1);
-    cross.y = tex1Dfetch(texRef,pixIdx-size.x);
-    cross.z = tex1Dfetch(texRef,pixIdx+1);
-    cross.w = tex1Dfetch(texRef,pixIdx+size.x);
+  res = (((pixel*cross.x)<=0) *\
+      (fabsf(pixel) < fabsf(cross.x)));
 
-    res = (((pixel*cross.x)<=0) *\
-            (fabsf(pixel) < fabsf(cross.x)));
-
-    res = res || ((((pixel*cross.y)<=0)) *\
-            (fabsf(pixel) < fabsf(cross.y)));
+  res = res || ((((pixel*cross.y)<=0)) *\
+      (fabsf(pixel) < fabsf(cross.y)));
     
-    res = res || ((((pixel*cross.z)<=0)) *\
-            (fabsf(pixel) <= fabsf(cross.z)));
+  res = res || ((((pixel*cross.z)<=0)) *\
+      (fabsf(pixel) <= fabsf(cross.z)));
 
-    res = res || ((((pixel*cross.w)<=0)) *\
-            (fabsf(pixel) <= fabsf(cross.w)));
-
-  }
+  res = res || ((((pixel*cross.w)<=0)) *\
+      (fabsf(pixel) <= fabsf(cross.w)));
 
   image[pixIdx] = res;
   

@@ -38,33 +38,28 @@ __global__ void kernel_Compute2ndDerivativePos(float *Magnitude, int3 size){
   float4 cross_Lvv;
   float4 cross_L;
 
-  float Lx = 0, 
-        Ly = 0, 
-        Lvvx = 0, 
+  float Lx = 0,
+        Ly = 0,
+        Lvvx = 0,
         Lvvy = 0,
-        gradMag = 0; 
+        gradMag;
 
-  ///Ignore the image borders
-  if ((pos.x) && ((size.x-1)-pos.x) && (pos.y) && ((size.y-1)-pos.y)){
+  cross_L.x = tex1Dfetch(texRef,(pixIdx-(size.x*(pos.y>0))));
+  cross_L.y = tex1Dfetch(texRef,(pixIdx+(size.x*(pos.y<(size.y-1)))));
+  cross_L.z = tex1Dfetch(texRef,(pixIdx-(pos.x>0)));
+  cross_L.w = tex1Dfetch(texRef,(pixIdx+(pos.x<(size.x-1))));
+  cross_Lvv.x = tex1Dfetch(der_texRef,(pixIdx-(size.x*(pos.y>0))));
+  cross_Lvv.y = tex1Dfetch(der_texRef,(pixIdx+(size.x*(pos.y<(size.y-1)))));
+  cross_Lvv.z = tex1Dfetch(der_texRef,(pixIdx-(pos.x>0)));
+  cross_Lvv.w = tex1Dfetch(der_texRef,(pixIdx+(pos.x<(size.x-1))));
+    
+  Lx = (-0.5*cross_L.z) + (0.5*cross_L.w);
+  Ly = (0.5*cross_L.x) - (0.5*cross_L.y);
 
-    cross_L.x = tex1Dfetch(texRef,(pixIdx-size.x));
-    cross_L.y = tex1Dfetch(texRef,(pixIdx+size.x));
-    cross_L.z = tex1Dfetch(texRef,(pixIdx-1));
-    cross_L.w = tex1Dfetch(texRef,(pixIdx+1));
-    cross_Lvv.x = tex1Dfetch(der_texRef,(pixIdx-size.x));
-    cross_Lvv.y = tex1Dfetch(der_texRef,(pixIdx+size.x));
-    cross_Lvv.z = tex1Dfetch(der_texRef,(pixIdx-1));
-    cross_Lvv.w = tex1Dfetch(der_texRef,(pixIdx+1));
+  Lvvx = (-0.5*cross_Lvv.z) + (0.5*cross_Lvv.w);
+  Lvvy = (0.5*cross_Lvv.x) - (0.5*cross_Lvv.y);
 
-    Lx = (-0.5*cross_L.z) + (0.5*cross_L.w);
-    Ly = (0.5*cross_L.x) - (0.5*cross_L.y);
-
-    Lvvx = (-0.5*cross_Lvv.z) + (0.5*cross_Lvv.w);
-    Lvvy = (0.5*cross_Lvv.x) - (0.5*cross_Lvv.y);
-
-    gradMag = sqrt((Lx*Lx)+(Ly*Ly));
-
-  }
+  gradMag = sqrt((Lx*Lx)+(Ly*Ly));
 
   Magnitude[pixIdx] = (((Lvvx*(Lx/gradMag)+Lvvy*(Ly/gradMag))<=0)*gradMag);
 
@@ -126,27 +121,23 @@ __global__ void kernel_Compute2ndDerivative(float *Lvv, int3 size){
         Lxy = 0, 
         Lyy = 0;
 
-  ///Ignore the image borders
-  if ((pos.x) && ((size.x-1)-pos.x) && (pos.y) && ((size.y-1)-pos.y)){
+  /// Stores the neighbors of the pixel on variables, because they will be
+  /// readen more than one time.
+  diagonal.x = tex1Dfetch(texRef,(pixIdx+((-size.x-1)*(pos.y>0)*(pos.x>0))));
+  diagonal.y = tex1Dfetch(texRef,(pixIdx+((-size.x+1)*(pos.y>0)*(pos.x<(size.x-1)))));
+  diagonal.z = tex1Dfetch(texRef,(pixIdx+((size.x-1)*(pos.y<(size.y-1))*(pos.x>0))));
+  diagonal.w = tex1Dfetch(texRef,(pixIdx+((size.x+1)*(pos.y<(size.y-1))*(pos.x<(size.x-1)))));
+  cross.x = tex1Dfetch(texRef,(pixIdx-(size.x*(pos.y>0))));
+  cross.y = tex1Dfetch(texRef,(pixIdx+(size.x*(pos.y<(size.y-1)))));
+  cross.z = tex1Dfetch(texRef,(pixIdx-(pos.x>0)));
+  cross.w = tex1Dfetch(texRef,(pixIdx+(pos.x<(size.x-1))));
 
-    /// Stores the neighbors of the pixel on variables, because they will be
-    /// readen more than one time.
-    diagonal.x = tex1Dfetch(texRef,(pixIdx-size.x-1));
-    diagonal.y = tex1Dfetch(texRef,(pixIdx-size.x+1));
-    diagonal.z = tex1Dfetch(texRef,(pixIdx+size.x-1));
-    diagonal.w = tex1Dfetch(texRef,(pixIdx+size.x+1));
-    cross.x = tex1Dfetch(texRef,(pixIdx-size.x));
-    cross.y = tex1Dfetch(texRef,(pixIdx+size.x));
-    cross.z = tex1Dfetch(texRef,(pixIdx-1));
-    cross.w = tex1Dfetch(texRef,(pixIdx+1));
+  Lx = (-0.5*cross.z) + (0.5*cross.w);
+  Ly = (0.5*cross.x) - (0.5*cross.y);
+  Lxx = cross.z - (2.0*pixel) + cross.w;
+  Lxy = (-0.25*diagonal.x) + (0.25*diagonal.y) + (0.25*diagonal.z) + (-0.25*diagonal.w);
+  Lyy = cross.x -(2.0*pixel) + cross.y;
 
-    Lx = (-0.5*cross.z) + (0.5*cross.w);
-    Ly = (0.5*cross.x) - (0.5*cross.y);
-    Lxx = cross.z - (2.0*pixel) + cross.w;
-    Lxy = (-0.25*diagonal.x) + (0.25*diagonal.y) + (0.25*diagonal.z) + (-0.25*diagonal.w);
-    Lyy = cross.x -(2.0*pixel) + cross.y;
-
-  }
 
   Lvv[pixIdx] = (((Lx*Lx)*Lxx) + (2.0*Lx*Ly*Lxy) + (Ly*Ly*Lyy))/((Lx*Lx) + (Ly*Ly));
 
