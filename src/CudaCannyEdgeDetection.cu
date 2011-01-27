@@ -233,39 +233,76 @@ __global__ void kernel_hysteresis_glm1D(float *hys_img, int3 size, int *have_mod
   // pixel position at the hysteresis image
   int pixIdx = pos.y * size.x + pos.x;
 
-  // load center
-  s_slice[sliceIdx] = hys_img[pixIdx];
-
   if (!threadIdx.x) modified_image_pixels = NOT_MODIFIED;
   if (!pixIdx) have_modified_pixels[0] = 0;
+  
 
-  /// load top
-  if(!slice_pos.y){
+  // load center
+  if ((pos.x>0)&&(pos.y>0)&&(pos.x<(size.x-1))&&(pos.y<(size.y-1))){
+
+    s_slice[sliceIdx] = hys_img[pixIdx];
+
+    /// load top
+    if(!slice_pos.y){
+      if(!slice_pos.x){
+        s_slice[0] = hys_img[pixIdx-size.x-1];///<TL
+      }
+      s_slice[slice_pos.x+1] = hys_img[pixIdx-size.x];
+      if(slice_pos.x == (SLICE_BLOCK_WIDTH-1)){
+        s_slice[SLICE_WIDTH-1] = hys_img[pixIdx-size.x+1];///<TR
+      }
+    }
+    /// load bottom
+    if(slice_pos.y == (SLICE_BLOCK_WIDTH-1)){
+      if(!slice_pos.x){
+        s_slice[SLICE_WIDTH*(SLICE_WIDTH-1)] = hys_img[pixIdx+size.x-1];///<BL
+      }
+      s_slice[(SLICE_WIDTH*(SLICE_WIDTH-1))+1+slice_pos.x] = hys_img[pixIdx+size.x];
+      if(slice_pos.x == (SLICE_BLOCK_WIDTH-1)){
+        s_slice[(SLICE_WIDTH*SLICE_WIDTH)-1] = hys_img[pixIdx+size.x+1];///<BR
+      }
+    }
+    /// load left
     if(!slice_pos.x){
-      s_slice[0] = ((pos.x>0)&&(pos.y>0)) * hys_img[pixIdx-size.x-1];///<TL
+      s_slice[(slice_pos.y+1)*SLICE_WIDTH] = hys_img[pixIdx-1];
     }
-    s_slice[slice_pos.x+1] = ((pos.y>0)&&(pos.y<size.y-1)) * hys_img[pixIdx-size.x];
+    /// load right
     if(slice_pos.x == (SLICE_BLOCK_WIDTH-1)){
-      s_slice[SLICE_WIDTH-1] = ((pos.x<(size.x-1))&&(pos.y>0)) * hys_img[pixIdx-size.x+1];///<TR
+      s_slice[((slice_pos.y+2)*SLICE_WIDTH)-1] = hys_img[pixIdx+1];
     }
+
   }
-  /// load bottom
-  if(slice_pos.y == (SLICE_BLOCK_WIDTH-1)){
+  else{
+    s_slice[sliceIdx] = 0;
+
+    /// load top
+    if(!slice_pos.y){
+      if(!slice_pos.x){
+        s_slice[0] = 0;///<TL
+      }
+      s_slice[slice_pos.x+1] = 0;
+      if(slice_pos.x == (SLICE_BLOCK_WIDTH-1)){
+        s_slice[SLICE_WIDTH-1] = 0;///<TR
+      }
+    }
+    /// load bottom
+    if(slice_pos.y == (SLICE_BLOCK_WIDTH-1)){
+      if(!slice_pos.x){
+        s_slice[SLICE_WIDTH*(SLICE_WIDTH-1)] = 0;///<BL
+      }
+      s_slice[(SLICE_WIDTH*(SLICE_WIDTH-1))+1+slice_pos.x] = 0;
+      if(slice_pos.x == (SLICE_BLOCK_WIDTH-1)){
+        s_slice[(SLICE_WIDTH*SLICE_WIDTH)-1] = 0;///<BR
+      }
+    }
+    /// load left
     if(!slice_pos.x){
-      s_slice[SLICE_WIDTH*(SLICE_WIDTH-1)] = ((pos.x>0)&&(pos.y<(size.y-1))) * hys_img[pixIdx+size.x-1];///<BL
+      s_slice[(slice_pos.y+1)*SLICE_WIDTH] = 0;
     }
-    s_slice[(SLICE_WIDTH*(SLICE_WIDTH-1))+1+slice_pos.x] = ((pos.y<(size.y-1))) * hys_img[pixIdx+size.x];
+    /// load right
     if(slice_pos.x == (SLICE_BLOCK_WIDTH-1)){
-      s_slice[(SLICE_WIDTH*SLICE_WIDTH)-1] = ((pos.x<(size.x-1))&&(pos.y<(size.y-1))) * hys_img[pixIdx+size.x+1];///<BR
+      s_slice[((slice_pos.y+2)*SLICE_WIDTH)-1] = 0;
     }
-  }
-  /// load left
-  if(!slice_pos.x){
-    s_slice[(slice_pos.y+1)*SLICE_WIDTH] = ((pos.x>0)) * hys_img[pixIdx-1];
-  }
-  /// load right
-  if(slice_pos.x == (SLICE_BLOCK_WIDTH-1)){
-    s_slice[((slice_pos.y+2)*SLICE_WIDTH)-1] = (pos.x<(size.x-1)) * hys_img[pixIdx+1];
   }
 
   __syncthreads();
@@ -288,7 +325,7 @@ __global__ void kernel_hysteresis_glm1D(float *hys_img, int3 size, int *have_mod
                 (s_slice[sliceIdx+SLICE_WIDTH-1] != DEFINITIVE_EDGE) *
                 (s_slice[sliceIdx+SLICE_WIDTH] != DEFINITIVE_EDGE) *
                 (s_slice[sliceIdx+SLICE_WIDTH+1] != DEFINITIVE_EDGE)));
-      if ( (edge)*(!modified_block_pixels)  ) modified_image_pixels = modified_block_pixels = MODIFIED;
+      if ( (edge)*(!modified_block_pixels) ) modified_image_pixels = modified_block_pixels = MODIFIED;
       s_slice[sliceIdx] = POSSIBLE_EDGE + ((edge)*(POSSIBLE_EDGE-1));
 
     }
@@ -299,7 +336,7 @@ __global__ void kernel_hysteresis_glm1D(float *hys_img, int3 size, int *have_mod
   }while(modified_block_pixels);// end inner loop
 
   // Update only the blocks that have modified pixels
-  if (modified_image_pixels) {
+  if ((modified_image_pixels) && (pos.x < (size.x)) && (pos.y < (size.y))){
     hys_img[pixIdx] = s_slice[sliceIdx];
   }
   if (!threadIdx.x) have_modified_pixels[0] += modified_image_pixels;
