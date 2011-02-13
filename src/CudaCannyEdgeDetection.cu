@@ -372,10 +372,6 @@ float* cudaHysteresis(dim3 DimGrid, dim3 DimBlock, float *d_img, float *d_mag, i
   cudaUnbindTexture(mag_texRef);
   CUT_CHECK_ERROR("Memory unbind failed");
 
-  //??? - do not remove
-  int *tt;
-  cudaMalloc((void**) &tt, (blocksPerGrid*sizeof(int)));
-
   // counter of modifications
   int *modif;
   cudaMalloc((void**) &modif, (sizeof(int)));
@@ -404,9 +400,9 @@ float* cudaHysteresis(dim3 DimGrid, dim3 DimBlock, float *d_img, float *d_mag, i
 
   cudaFree(d_hys);
   cudaFree(modif);
-  cudaFree(tt);
   CUT_CHECK_ERROR("Memory free failed");
-  
+
+  //returna edges  
   float *d_edges;
   d_edges = d_img;
   return(d_edges);
