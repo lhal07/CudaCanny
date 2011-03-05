@@ -1,0 +1,1 @@
+- Testar a histerese sem o if (05/03)
