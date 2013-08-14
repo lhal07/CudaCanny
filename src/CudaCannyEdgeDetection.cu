@@ -338,8 +338,8 @@ __global__ void kernel_hysteresis_glm1D(float *hys_img, int3 size, int *have_mod
   // Update only the blocks that have modified pixels
   if ((modified_image_pixels) && (pos.x < (size.x)) && (pos.y < (size.y))){
     hys_img[pixIdx] = s_slice[sliceIdx];
+    if (!threadIdx.x) have_modified_pixels[0] += 1;
   }
-  if (!threadIdx.x) have_modified_pixels[0] += modified_image_pixels;
 
 }
 
@@ -354,7 +354,11 @@ float* cudaHysteresis(dim3 DimGrid, dim3 DimBlock, float *d_img, float *d_mag, i
   
   float *d_hys;
   cudaMalloc((void**) &d_hys, (size.z*sizeof(float)));
-  CUT_CHECK_ERROR("Memory hysteresis image creation failed");
+
+  // counter of modifications
+  int *modif;
+  cudaMalloc((void**) &modif, (sizeof(int)));
+  CUT_CHECK_ERROR("Memory hysteresis image allocation failed");
 
   /// bind a texture to the image
   cudaBindTexture (NULL ,texRef, d_img);
@@ -372,15 +376,13 @@ float* cudaHysteresis(dim3 DimGrid, dim3 DimBlock, float *d_img, float *d_mag, i
   cudaUnbindTexture(mag_texRef);
   CUT_CHECK_ERROR("Memory unbind failed");
 
-  // counter of modifications
-  int *modif;
-  cudaMalloc((void**) &modif, (sizeof(int)));
-
   int cont[1];
   do{
     kernel_hysteresis_glm1D<<<DimGrid,DimBlock>>>(d_hys, size, modif);
-    CUT_CHECK_ERROR("Hysteresis Kernel failed");
+//    cudaThreadSynchronize();
+//    CUT_CHECK_ERROR("Hysteresis Kernel failed");
     cudaMemcpy(cont,modif,sizeof(int),cudaMemcpyDeviceToHost);
+//    cudaThreadSynchronize();
   }while(cont[0]);
 
   /// bind a texture to the CUDA array

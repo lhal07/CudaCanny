@@ -30,7 +30,9 @@ void
 CudaDiscreteGaussianImageFilter<TInputImage, TOutputImage>
 ::GenerateData()
 {
+
   typename TInputImage::ConstPointer input = this->GetInput();
+
   typename TOutputImage::Pointer output = this->GetOutput();
 //  typename TOutputImage::PixelType * mask;
 

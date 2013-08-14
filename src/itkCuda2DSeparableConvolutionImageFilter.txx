@@ -68,7 +68,7 @@ Cuda2DSeparableConvolutionImageFilter<TInputImage, TOutputImage>
   cudaMemcpy(d_Mask2, m_Mask2, (sizeof(typename TOutputImage::PixelType)*m_SizeMask2), cudaMemcpyHostToDevice);
 
   // Call cudaGaussian. Defined on CudaDiscreteGaussian.cu
-  ptr = cuda2DSeparableConvolution(m_CudaConf->GetGridDim(),m_CudaConf->GetBlockDim(),input->GetDevicePointer(), size[0], size[1], d_Mask1, m_SizeMask1, d_Mask2, m_SizeMask2);
+  ptr = cuda2DSeparableConvolution(m_CudaConf->GetGridDim(),m_CudaConf->GetBlockDim(), input->GetDevicePointer(), size[0], size[1], d_Mask1, m_SizeMask1, d_Mask2, m_SizeMask2);
 
   // Set image pointer to the output image
   output->GetPixelContainer()->SetDevicePointer(ptr, size[0]*size[1], true);

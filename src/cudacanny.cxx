@@ -50,8 +50,10 @@ int main (int argc, char** argv){
     return EXIT_FAILURE;
   }
 
-  struct timeval tv1,tv2;
-  unsigned int time = 0;
+  cudaSetDevice(1);
+//  cudaThreadSetCacheConfig(cudaFuncCachePreferShared);
+
+  ImageType::Pointer res = ImageType::New();
 
   // Read parameters
   const float gaussianVariance = atof( argv[3] );

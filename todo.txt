@@ -1,1 +1,1 @@
-- Testar a histerese sem o if (05/03)
+ - Medir os tempos de entrada e saída de dados

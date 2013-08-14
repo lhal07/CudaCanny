@@ -63,10 +63,8 @@ namespace itk
  * the same as the data type of the output image. Any values below the
  * Threshold level will be replaced with the OutsideValue parameter value, whose
  * default is zero.
-
-pliniodearruda Plínio de Arruda 50 
-
  */
+
 template<class TInputImage, class TOutputImage>
 class ITK_EXPORT CudaCannyEdgeDetectionImageFilter
   : public ImageToImageFilter<TInputImage, TOutputImage>
